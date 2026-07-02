@@ -1,0 +1,66 @@
+# Dockerfile.kdf-wasm — Build KDF to WebAssembly, extract via -o
+# Usage: docker build -f src/Dockerfile.kdf-wasm -o output/wasm .
+#
+# Layer strategy (top = stable, bottom = volatile):
+#   [1] apt deps + wasm-pack — rebuilds only when Dockerfile changes
+#   [2] clone KDF source      — rebuilds only when sources.json changes
+#   [3] cargo fetch           — rebuilds only when upstream Cargo.toml changes
+#   [4] project + build       — rebuilds on any file change, source + deps pre-cached
+#
+# Output:
+#   output/wasm/mm2_bg.wasm      ← KDF engine compiled to WASM
+#   output/wasm/mm2.js            ← JS glue code (wasm-bindgen)
+#   output/wasm/package.json
+
+FROM rust:1.84.0-bookworm
+
+ENV DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC
+RUN apt-get update && apt-get install -y \
+    git curl wget jq \
+    build-essential cmake pkg-config libssl-dev clang \
+    protobuf-compiler binaryen \
+    && rm -rf /var/lib/apt/lists/*
+
+# ── [1] wasm-pack + WASM target ────────────────────────────
+RUN curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+RUN rustup target add wasm32-unknown-unknown
+
+# ── [2] Clone KDF at pinned commit ─────────────────────────
+# Only rebuilds when config/sources.json changes
+COPY config/sources.json /tmp/cfg/
+RUN KDF_COMMIT=$(jq -r '.kdf.commit' /tmp/cfg/sources.json) && \
+    KDF_REPO=$(jq -r '.kdf.repo' /tmp/cfg/sources.json) && \
+    git clone "$KDF_REPO" /tmp/kdf-src && \
+    cd /tmp/kdf-src && \
+    git checkout "$KDF_COMMIT" && \
+    git submodule update --init --recursive && \
+    git config advice.detachedHead false
+
+# ── [3] Fetch crates + WASM deps ───────────────────────────
+RUN cd /tmp/kdf-src && \
+    cargo fetch --target wasm32-unknown-unknown
+
+# ── [4] Project files + build ──────────────────────────────
+# Rebuilds on any file change, but source + deps are pre-cached.
+# Cache mounts preserve target/ for incremental compilation.
+COPY . /builder
+WORKDIR /builder
+RUN --mount=type=cache,target=/tmp/kdf-src/target \
+    --mount=type=cache,target=/usr/local/cargo/registry \
+    --mount=type=cache,target=/usr/local/cargo/git \
+    mkdir -p output/wasm && \
+    cp -a /tmp/kdf-src /build && \
+    cd /build && \
+    wasm-pack build mm2src/mm2_bin_lib \
+      --target web \
+      --out-name mm2 \
+      --release \
+      -- --features native && \
+    cp mm2src/mm2_bin_lib/pkg/mm2_bg.wasm /builder/output/wasm/ && \
+    cp mm2src/mm2_bin_lib/pkg/mm2.js /builder/output/wasm/ && \
+    cp mm2src/mm2_bin_lib/pkg/package.json /builder/output/wasm/
+
+FROM scratch AS output
+COPY --from=0 /builder/output/wasm/mm2_bg.wasm /mm2_bg.wasm
+COPY --from=0 /builder/output/wasm/mm2.js     /mm2.js
+COPY --from=0 /builder/output/wasm/package.json /package.json

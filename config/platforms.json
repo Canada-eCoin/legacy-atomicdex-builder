@@ -1,0 +1,60 @@
+{
+  "linux": {
+    "target": "x86_64-unknown-linux-gnu",
+    "image": "ubuntu:24.04@sha256:...",
+    "toolchain": {
+      "rust": "1.84.0",
+      "gcc": "14.2.0",
+      "cmake": "4.3.3",
+      "qt": "5.15.2",
+      "ninja": "1.12.1"
+    },
+    "flags": {
+      "SOURCE_DATE_EPOCH": "<commit_timestamp>",
+      "CFLAGS": "-O2 -fPIC",
+      "CXXFLAGS": "-O2 -fPIC"
+    }
+  },
+  "mac": {
+    "target": ["x86_64-apple-darwin", "aarch64-apple-darwin"],
+    "requires_host": "macOS",
+    "toolchain": {
+      "rust": "1.84.0",
+      "xcode": "16.0",
+      "cmake": "4.3.3",
+      "qt": "5.15.2"
+    },
+    "flags": {
+      "SOURCE_DATE_EPOCH": "<commit_timestamp>",
+      "MACOSX_DEPLOYMENT_TARGET": "12.0"
+    },
+    "sign": {
+      "identity": "Developer ID Application: <name> (<team>)",
+      "notary_profile": "ecoincore"
+    }
+  },
+  "windows": {
+    "target": "x86_64-pc-windows-msvc",
+    "cross_compile": "mingw-w64",
+    "toolchain": {
+      "rust": "1.84.0",
+      "mingw": "12.0.0",
+      "cmake": "4.3.3",
+      "qt": "5.15.2",
+      "ninja": "1.12.1"
+    },
+    "flags": {
+      "SOURCE_DATE_EPOCH": "<commit_timestamp>"
+    },
+    "sign": {
+      "cert_store": "current_user\\my",
+      "cert_thumbprint": "<thumbprint>"
+    }
+  },
+  "signatures": {
+    "method": "GPG clearsign manifest.json",
+    "registry": "https://registry.ecoincore.com",
+    "min_required": 1,
+    "trust_source": "eCoinCore trust bonds + sigchain"
+  }
+}

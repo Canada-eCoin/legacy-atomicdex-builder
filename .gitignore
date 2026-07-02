@@ -1,0 +1,17 @@
+# Pipeline build artifacts
+output/
+logs/
+.build/
+squashfs-root/
+*.AppImage
+
+# Docker cached source
+.mm2-fork-source/
+
+# macOS
+.DS_Store
+
+# Editor
+*.swp
+*.swo
+*~

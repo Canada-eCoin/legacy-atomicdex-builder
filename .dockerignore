@@ -1,0 +1,6 @@
+output/
+.build/
+logs/
+.git/
+*.AppImage
+squashfs-root/

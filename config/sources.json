@@ -1,0 +1,31 @@
+{
+  "kdf": {
+    "repo": "https://github.com/KomodoPlatform/komodo-defi-framework",
+    "commit": "30c877c5",
+    "desc": "Last honest commit before Gleec IP ownership change (2025-11-26)",
+    "build": {
+      "dockerfile": "Dockerfile.kdf",
+      "output": "kdf-linux-x86-64"
+    }
+  },
+  "desktop": {
+    "repo": "https://github.com/cipig/komodo-wallet-desktop",
+    "branch": "nogeo",
+    "commit": "0d333c5",
+    "desc": "Active upstream community fork (Flow, 2026-06-19)",
+    "build": {
+      "dockerfile": "Dockerfile.desktop",
+      "output": "komodo-wallet-desktop-linux-x86-64.AppImage"
+    }
+  },
+  "dependencies": {
+    "qaterial": {
+      "repo": "https://github.com/OlivierLDff/Qaterial.git",
+      "commit": "c2f32d2"
+    },
+    "coin_configs": {
+      "repo": "https://github.com/cipig/coins",
+      "branch": "nogeo"
+    }
+  }
+}
