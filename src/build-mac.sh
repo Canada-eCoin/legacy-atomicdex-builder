@@ -439,7 +439,7 @@ build_desktop() {
         cd /tmp/libwally-core
         export LIBTOOL=glibtool LIBTOOLIZE=glibtoolize
         ./tools/autogen.sh
-        ./configure --disable-shared --disable-tests LIBTOOL=glibtool
+        PYTHON=python3 ./configure --disable-shared --disable-tests LIBTOOL=glibtool
         make -j"$BUILD_CPUS" install
         cd "$dtop_dir"
         ok "libwally installed"
