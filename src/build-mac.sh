@@ -483,6 +483,7 @@ build_desktop() {
     cmake -GNinja \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0 \
+        -DCMAKE_TOOLCHAIN_FILE="${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" \
         -DCMAKE_PREFIX_PATH="$(brew --prefix qt@5 2>/dev/null || echo /usr/local/opt/qt@5)" \
         ../../ 2>&1 | sed 's/^/  /'
 
