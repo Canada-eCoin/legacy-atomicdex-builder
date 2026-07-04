@@ -444,6 +444,8 @@ build_desktop() {
         ln -sf "$(which python3)" /tmp/pybind/python
         export PATH="/tmp/pybind:$PATH"
         ./tools/autogen.sh
+        # Python 3.12+ dropped distutils; setuptools provides it
+        python3 -m pip install --user setuptools 2>/dev/null || true
         ./configure --disable-shared --disable-tests LIBTOOL=glibtool
         make -j"$BUILD_CPUS" install
         cd "$dtop_dir"
