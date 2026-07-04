@@ -253,7 +253,9 @@ check_cmd() {
     elif command -v "$bin" &>/dev/null; then
         ok "$pkg — $why"; return 0
     fi
-    fail "$pkg is not installed — $why"; return 1
+    fail "$pkg is not installed — $why"
+    echo -e "  ${C_YELLOW}→ Install:${C_RESET} brew install $pkg"
+    return 1
 }
 
 # ═══════════════════════════════════════════════════════════════
