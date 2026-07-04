@@ -40,7 +40,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="${SCRIPT_DIR}/.."
 CONFIG_DIR="${PROJECT_DIR}/config"
 SOURCES_JSON="${CONFIG_DIR}/sources.json"
-BRANDING_JSON="${CONFIG_DIR}/branding.json"
 
 FLAG_YES=false
 FLAG_KDF_ONLY=false
@@ -87,9 +86,9 @@ KDF_REPO="${KDF_REPO:-$(jq -r '.kdf.repo' "$SOURCES_JSON")}"
 KDF_COMMIT="${KDF_COMMIT:-$(jq -r '.kdf.commit' "$SOURCES_JSON")}"
 DESKTOP_REPO="${DESKTOP_REPO:-$(jq -r '.desktop.repo' "$SOURCES_JSON")}"
 DESKTOP_COMMIT="${DESKTOP_COMMIT:-$(jq -r '.desktop.commit' "$SOURCES_JSON")}"
-APP_NAME="${APP_NAME:-$(jq -r '.app_name' "$BRANDING_JSON")}"
-APP_WEBSITE="${APP_WEBSITE:-$(jq -r '.app_website // empty' "$BRANDING_JSON" 2>/dev/null || echo 'https://ecoincore.com')}"
-SEED_URL="${SEED_URL:-$(jq -r '.seed_registry_url' "$BRANDING_JSON")}"
+APP_NAME="${APP_NAME:-Komodo Wallet}"
+APP_WEBSITE="${APP_WEBSITE:-https://ecoincore.com}"
+SEED_URL="${SEED_URL:-}"
 APPLE_TEAM_ID="${APPLE_TEAM_ID:-}"
 APPLE_DEVELOPER_ID="${APPLE_DEVELOPER_ID:-}"
 

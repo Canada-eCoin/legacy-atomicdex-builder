@@ -62,7 +62,6 @@ $OutputDir    = Join-Path $ProjectDir "output\windows"
 $LogDir       = Join-Path $ProjectDir "logs\windows"
 $BuildDir     = Join-Path $ProjectDir ".build"
 $SourcesJson  = Join-Path $ConfigDir "sources.json"
-$BrandingJson = Join-Path $ConfigDir "branding.json"
 $InstalledLog = Join-Path $LogDir "installed.log"
 
 # Create directories
@@ -70,15 +69,13 @@ New-Item -ItemType Directory -Force -Path $OutputDir, $LogDir, $BuildDir | Out-N
 
 # ── Read config (ENV vars override config files) ──────────────
 $Sources  = Get-Content $SourcesJson -Raw | ConvertFrom-Json
-$Branding = Get-Content $BrandingJson -Raw | ConvertFrom-Json
-
 $KdfRepo     = if ($env:KDF_REPO) { $env:KDF_REPO } else { $Sources.kdf.repo }
 $KdfCommit   = if ($env:KDF_COMMIT) { $env:KDF_COMMIT } else { $Sources.kdf.commit }
 $DesktopRepo = if ($env:DESKTOP_REPO) { $env:DESKTOP_REPO } else { $Sources.desktop.repo }
 $DesktopCommit = if ($env:DESKTOP_COMMIT) { $env:DESKTOP_COMMIT } else { $Sources.desktop.commit }
-$AppName     = if ($env:APP_NAME) { $env:APP_NAME } else { $Branding.app_name }
-$AppWebsite  = if ($env:APP_WEBSITE) { $env:APP_WEBSITE } else { if ($Branding.app_website) { $Branding.app_website } else { "https://ecoincore.com" } }
-$SeedUrl     = if ($env:SEED_URL) { $env:SEED_URL } else { $Branding.seed_registry_url }
+$AppName     = if ($env:APP_NAME) { $env:APP_NAME } else { "Komodo Wallet" }
+$AppWebsite  = if ($env:APP_WEBSITE) { $env:APP_WEBSITE } else { "https://ecoincore.com" }
+$SeedUrl     = if ($env:SEED_URL) { $env:SEED_URL } else { "" }
 
 # CPU count: use ENV override, or auto-detect (half of logical cores)
 if ($env:BUILD_CPUS) {
