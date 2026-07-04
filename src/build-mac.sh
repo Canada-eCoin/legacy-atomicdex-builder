@@ -243,7 +243,7 @@ suggest_install() {
     local pkg="$1"; local why="$2"; local cmd="$3"
     echo -e "  ${C_YELLOW}→ Install:${C_RESET} $cmd"
     echo -e "  ${C_YELLOW}  Why:${C_RESET} $why"
-    echo -e "  ${C_YELLOW}  Size:${C_RESET} $4"
+    echo -e "  ${C_YELLOW}  Size:${C_RESET} ${4:-}"
 }
 
 check_cmd() {
