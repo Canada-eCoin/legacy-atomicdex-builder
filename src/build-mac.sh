@@ -238,6 +238,7 @@ check_all_deps() {
         check_cmd automake    "automake"    "autotools (libwally build)" || ((total_missing++))
         check_cmd glibtool    "libtool"     "GNU libtool (not Apple's)"  || ((total_missing++))
         check_cmd gsed        "gnu-sed"     "libwally autogen.sh"         || ((total_missing++))
+        check_cmd python3     "python3"     "Python dev headers for libwally" || ((total_missing++))
     fi
 
     echo ""
@@ -277,7 +278,7 @@ install_missing_deps() {
     local missing_count="$1"
     if [ "$missing_count" -eq 0 ]; then return 0; fi
 
-    local brew_pkgs="cmake ninja jq git curl protobuf openssl@3 rustup-init automake libtool gnu-sed"
+    local brew_pkgs="cmake ninja jq git curl protobuf openssl@3 rustup-init automake libtool gnu-sed python3"
     local qt_pkgs="qt@5 cpprestsdk"
 
     echo ""
