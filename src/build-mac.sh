@@ -234,10 +234,10 @@ check_all_deps() {
             echo -e "  ${C_YELLOW}→ Install:${C_RESET} brew install cpprestsdk"
             ((total_missing++))
         fi
-        # libwally-core build deps
-        check_cmd automake "automake" "autotools (libwally build)" || ((total_missing++))
-        check_cmd libtool  "libtool"  "autotools (libwally build)" || ((total_missing++))
-        check_cmd gsed     "gnu-sed"  "libwally autogen.sh"       || ((total_missing++))
+        # libwally-core build deps (needs GNU libtool, not Apple's)
+        check_cmd automake    "automake"    "autotools (libwally build)" || ((total_missing++))
+        check_cmd glibtool    "libtool"     "GNU libtool (not Apple's)"  || ((total_missing++))
+        check_cmd gsed        "gnu-sed"     "libwally autogen.sh"         || ((total_missing++))
     fi
 
     echo ""
@@ -436,8 +436,9 @@ build_desktop() {
         git clone https://github.com/ElementsProject/libwally-core \
             --recurse-submodules -b release_0.9.2 /tmp/libwally-core 2>/dev/null || true
         cd /tmp/libwally-core
+        export LIBTOOL=glibtool LIBTOOLIZE=glibtoolize
         ./tools/autogen.sh
-        ./configure --disable-shared --disable-tests
+        ./configure --disable-shared --disable-tests LIBTOOL=glibtool
         make -j"$BUILD_CPUS" install
         cd "$dtop_dir"
         ok "libwally installed"
