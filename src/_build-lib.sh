@@ -59,6 +59,7 @@ clone_source() {
     else
         step "cloning ${name} @ ${commit}"
         rm -rf "$dir"
+        info "Large repo with years of history — this will take a few minutes"
         git clone "$repo" "$dir"
         (cd "$dir" && git checkout "$commit" && git submodule update --init --recursive)
     fi

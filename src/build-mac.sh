@@ -340,6 +340,7 @@ build_kdf() {
         (cd "$kdf_dir" && git fetch origin && git checkout "$KDF_COMMIT" && git submodule update --init --recursive)
     else
         rm -rf "$kdf_dir"
+        info "Cloning KDF — large repo, years of history — grab a coffee"
         git clone "$KDF_REPO" "$kdf_dir"
         (cd "$kdf_dir" && git checkout "$KDF_COMMIT" && git submodule update --init --recursive)
     fi
@@ -403,6 +404,7 @@ build_desktop() {
         (cd "$dtop_dir" && git fetch origin && git checkout "$DESKTOP_COMMIT" && git submodule update --init --recursive)
     else
         rm -rf "$dtop_dir"
+        info "Cloning desktop — large repo, years of history — grab another coffee"
         git clone "$DESKTOP_REPO" "$dtop_dir"
         (cd "$dtop_dir" && git checkout "$DESKTOP_COMMIT" && git submodule update --init --recursive)
     fi
