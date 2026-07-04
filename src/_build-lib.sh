@@ -59,8 +59,8 @@ clone_source() {
     else
         step "cloning ${name} @ ${commit}"
         rm -rf "$dir"
-        git clone "$repo" "$dir"
-        (cd "$dir" && git checkout "$commit" && git submodule update --init --recursive)
+        git clone --depth 1 "$repo" "$dir"
+        (cd "$dir" && git fetch --depth 1 origin "$commit" && git checkout "$commit" && git submodule update --init --recursive)
     fi
     ok "${name} ready"
 }
@@ -98,7 +98,7 @@ ensure_libwally() {
         return 0
     fi
     step "building libwally"
-    git clone https://github.com/ElementsProject/libwally-core \
+    git clone --depth 1 https://github.com/ElementsProject/libwally-core \
         --recurse-submodules -b release_0.9.2 /tmp/libwally-core 2>/dev/null || true
     cd /tmp/libwally-core
     ./tools/autogen.sh
