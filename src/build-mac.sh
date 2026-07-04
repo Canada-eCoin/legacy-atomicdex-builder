@@ -438,7 +438,11 @@ build_desktop() {
         git clone https://github.com/ElementsProject/libwally-core \
             --recurse-submodules -b release_0.9.2 /tmp/libwally-core
         cd /tmp/libwally-core
-        export LIBTOOL=glibtool LIBTOOLIZE=glibtoolize PYTHON=python3
+        export LIBTOOL=glibtool LIBTOOLIZE=glibtoolize
+        # brew python3 doesn't create 'python' symlink — make one in /tmp
+        mkdir -p /tmp/pybind
+        ln -sf "$(which python3)" /tmp/pybind/python
+        export PATH="/tmp/pybind:$PATH"
         ./tools/autogen.sh
         ./configure --disable-shared --disable-tests LIBTOOL=glibtool
         make -j"$BUILD_CPUS" install
