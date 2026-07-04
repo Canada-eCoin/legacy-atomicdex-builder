@@ -340,8 +340,8 @@ build_kdf() {
         (cd "$kdf_dir" && git fetch origin && git checkout "$KDF_COMMIT" && git submodule update --init --recursive)
     else
         rm -rf "$kdf_dir"
-        git clone --depth 1 "$KDF_REPO" "$kdf_dir"
-        (cd "$kdf_dir" && git fetch --depth 1 origin "$KDF_COMMIT" && git checkout "$KDF_COMMIT" && git submodule update --init --recursive)
+        git clone --filter=blob:none "$KDF_REPO" "$kdf_dir"
+        (cd "$kdf_dir" && git checkout "$KDF_COMMIT" && git submodule update --init --recursive)
     fi
     ok "KDF source at $(cd "$kdf_dir" && git rev-parse --short HEAD)"
 
@@ -403,8 +403,8 @@ build_desktop() {
         (cd "$dtop_dir" && git fetch origin && git checkout "$DESKTOP_COMMIT" && git submodule update --init --recursive)
     else
         rm -rf "$dtop_dir"
-        git clone --depth 1 "$DESKTOP_REPO" "$dtop_dir"
-        (cd "$dtop_dir" && git fetch --depth 1 origin "$DESKTOP_COMMIT" && git checkout "$DESKTOP_COMMIT" && git submodule update --init --recursive)
+        git clone --filter=blob:none "$DESKTOP_REPO" "$dtop_dir"
+        (cd "$dtop_dir" && git checkout "$DESKTOP_COMMIT" && git submodule update --init --recursive)
     fi
     ok "Desktop source at $(cd "$dtop_dir" && git rev-parse --short HEAD)"
 
