@@ -73,8 +73,8 @@ $KdfRepo     = if ($env:KDF_REPO) { $env:KDF_REPO } else { $Sources.kdf.repo }
 $KdfCommit   = if ($env:KDF_COMMIT) { $env:KDF_COMMIT } else { $Sources.kdf.commit }
 $DesktopRepo = if ($env:DESKTOP_REPO) { $env:DESKTOP_REPO } else { $Sources.desktop.repo }
 $DesktopCommit = if ($env:DESKTOP_COMMIT) { $env:DESKTOP_COMMIT } else { $Sources.desktop.commit }
-$AppName     = if ($env:APP_NAME) { $env:APP_NAME } else { "Komodo Wallet" }
-$AppWebsite  = if ($env:APP_WEBSITE) { $env:APP_WEBSITE } else { "https://ecoincore.com" }
+$AppName     = if ($env:APP_NAME) { $env:APP_NAME } else { "" }
+$AppWebsite  = if ($env:APP_WEBSITE) { $env:APP_WEBSITE } else { "" }
 $SeedUrl     = if ($env:SEED_URL) { $env:SEED_URL } else { "" }
 
 # CPU count: use ENV override, or auto-detect (half of logical cores)
@@ -522,7 +522,7 @@ function Build-Desktop {
 function Main {
     Write-Host ""
     Write-Host "╔══════════════════════════════════════════════════════════╗" -ForegroundColor White
-    Write-Host "║  $AppName — Native Windows Build                      ║" -ForegroundColor White
+    Write-Host "║  Native Windows Build" -ForegroundColor White
     Write-Host "╚══════════════════════════════════════════════════════════╝" -ForegroundColor White
     Write-Host ""
     Write-Host "  CPUs: $BuildCpus  |  KDF: $KdfCommit  |  Desktop: $DesktopCommit" -ForegroundColor Gray
