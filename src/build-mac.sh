@@ -234,11 +234,18 @@ check_all_deps() {
             echo -e "  ${C_YELLOW}→ Install:${C_RESET} brew install cpprestsdk"
             ((total_missing++))
         fi
-        # libwally-core build deps (needs GNU libtool, not Apple's)
-        check_cmd automake    "automake"    "autotools (libwally build)" || ((total_missing++))
-        check_cmd glibtool    "libtool"     "GNU libtool (not Apple's)"  || ((total_missing++))
-        check_cmd gsed        "gnu-sed"     "libwally autogen.sh"         || ((total_missing++))
-        check_cmd python3     "python3"     "Python dev headers for libwally" || ((total_missing++))
+        # libwally + vcpkg build deps (needs GNU autotools, not Apple's)
+        check_cmd automake          "automake"          "autotools" || ((total_missing++))
+        check_cmd autoconf          "autoconf"          "autotools" || ((total_missing++))
+        check_cmd glibtool          "libtool"           "GNU libtool (not Apple's)" || ((total_missing++))
+        check_cmd gsed              "gnu-sed"           "libwally autogen.sh"       || ((total_missing++))
+        check_cmd python3           "python3"           "Python dev headers"        || ((total_missing++))
+        # autoconf-archive: header-only, no binary — just check brew has it
+        brew list autoconf-archive &>/dev/null || {
+            fail "autoconf-archive is not installed — vcpkg needs it"
+            echo -e "  ${C_YELLOW}→ Install:${C_RESET} brew install autoconf-archive"
+            ((total_missing++))
+        }
     fi
 
     echo ""
@@ -278,7 +285,7 @@ install_missing_deps() {
     local missing_count="$1"
     if [ "$missing_count" -eq 0 ]; then return 0; fi
 
-    local brew_pkgs="cmake ninja jq git curl protobuf openssl@3 rustup-init automake libtool gnu-sed python3"
+    local brew_pkgs="cmake ninja jq git curl protobuf openssl@3 rustup-init automake autoconf autoconf-archive libtool gnu-sed python3"
     local qt_pkgs="qt@5 cpprestsdk"
 
     echo ""
@@ -402,6 +409,12 @@ build_kdf() {
 # ═══════════════════════════════════════════════════════════════
 
 build_desktop() {
+    # brew doesn't provide bare 'python' or 'libtoolize' — vcpkg/libwally need them
+    mkdir -p /tmp/pybind
+    ln -sf "$(which python3)" /tmp/pybind/python 2>/dev/null || true
+    ln -sf "$(which glibtoolize 2>/dev/null || echo /opt/homebrew/bin/glibtoolize)" /tmp/pybind/libtoolize 2>/dev/null || true
+    export PATH="/tmp/pybind:$PATH"
+
     step "5/6" "Cloning desktop source (pinned commit ${DESKTOP_COMMIT})..."
     local dtop_dir="${BUILD_DIR}/desktop"
 
@@ -439,10 +452,6 @@ build_desktop() {
             --recurse-submodules -b release_0.9.2 /tmp/libwally-core
         cd /tmp/libwally-core
         export LIBTOOL=glibtool LIBTOOLIZE=glibtoolize
-        # brew python3 doesn't create 'python' symlink — make one in /tmp
-        mkdir -p /tmp/pybind
-        ln -sf "$(which python3)" /tmp/pybind/python
-        export PATH="/tmp/pybind:$PATH"
         ./tools/autogen.sh
         # Python 3.12+ dropped distutils; setuptools provides it
         brew install python-setuptools 2>/dev/null || true
