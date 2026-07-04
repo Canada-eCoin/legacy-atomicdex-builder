@@ -181,7 +181,7 @@ check_all_deps() {
     # cmake version check
     if command -v cmake &>/dev/null; then
         local cmake_ver
-        cmake_ver=$(cmake --version 2>/dev/null | head -1 | grep -oP '\d+\.\d+' || echo "0.0")
+        cmake_ver=$(cmake --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+' | head -1 || echo "0.0")
         if [ "$(printf '%s\n' "4.3" "$cmake_ver" | sort -V | head -1)" != "4.3" ]; then
             warn "cmake $cmake_ver is too old — 4.3+ recommended"
             suggest_install "cmake 4.3+" "vcpkg needs cmake 4.3+" 'brew install cmake'
@@ -202,11 +202,14 @@ check_all_deps() {
     # ── Crypto libs ─────────────────────────────────────────
     echo ""
     echo -e "${C_BOLD}Crypto & network:${C_RESET}"
-    check_cmd /usr/local/opt/openssl@3/include/openssl/ssl.h "openssl@3" "OpenSSL headers" || \
-    check_cmd /opt/homebrew/opt/openssl@3/include/openssl/ssl.h "openssl@3" "OpenSSL headers" || \
-        { fail "openssl@3 is not installed — TLS/crypto support"
-          suggest_install "openssl@3" "OpenSSL development headers" 'brew install openssl@3'
-          ((total_missing++)); }
+    if [ -e /usr/local/opt/openssl@3/include/openssl/ssl.h ] || \
+       [ -e /opt/homebrew/opt/openssl@3/include/openssl/ssl.h ]; then
+        ok "openssl@3 — OpenSSL headers"
+    else
+        fail "openssl@3 is not installed — TLS/crypto support"
+        echo -e "  ${C_YELLOW}→ Install:${C_RESET} brew install openssl@3"
+        ((total_missing++))
+    fi
 
     # ── Protobuf ────────────────────────────────────────────
     check_cmd protoc "protobuf"        "Protocol Buffers compiler" || ((total_missing++))
@@ -215,18 +218,22 @@ check_all_deps() {
     if ! $FLAG_KDF_ONLY; then
         echo ""
         echo -e "${C_BOLD}Desktop wallet (QT5, ~2.5GB):${C_RESET}"
-        check_cmd /usr/local/opt/qt@5/lib/cmake/Qt5/Qt5Config.cmake "qt@5" "QT5 framework" || \
-        check_cmd /opt/homebrew/opt/qt@5/lib/cmake/Qt5/Qt5Config.cmake "qt@5" "QT5 framework" || {
+        if [ -e /usr/local/opt/qt@5/lib/cmake/Qt5/Qt5Config.cmake ] || \
+           [ -e /opt/homebrew/opt/qt@5/lib/cmake/Qt5/Qt5Config.cmake ]; then
+            ok "qt@5 — QT5 framework"
+        else
             fail "qt@5 is not installed — QT5 framework (~2.1GB)"
-            suggest_install "qt@5" "C++ UI framework" 'brew install qt@5'
+            echo -e "  ${C_YELLOW}→ Install:${C_RESET} brew install qt@5"
             ((total_missing++))
-        }
-        check_cmd /usr/local/opt/cpprestsdk/include/cpprest/http_client.h "cpprestsdk" "C++ REST SDK" || \
-        check_cmd /opt/homebrew/opt/cpprestsdk/include/cpprest/http_client.h "cpprestsdk" "C++ REST SDK" || {
+        fi
+        if [ -e /usr/local/opt/cpprestsdk/include/cpprest/http_client.h ] || \
+           [ -e /opt/homebrew/opt/cpprestsdk/include/cpprest/http_client.h ]; then
+            ok "cpprestsdk — C++ REST SDK"
+        else
             fail "cpprestsdk is not installed — HTTP client library"
-            suggest_install "cpprestsdk" "C++ HTTP client" 'brew install cpprestsdk'
+            echo -e "  ${C_YELLOW}→ Install:${C_RESET} brew install cpprestsdk"
             ((total_missing++))
-        }
+        fi
     fi
 
     echo ""
