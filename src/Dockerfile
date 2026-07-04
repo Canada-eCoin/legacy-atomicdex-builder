@@ -112,6 +112,7 @@ RUN git clone https://github.com/ElementsProject/libwally-core \
         --recurse-submodules -b release_0.9.2 /tmp/libwally-core && \
     cd /tmp/libwally-core && \
     ./tools/autogen.sh && \
+    python3 -m pip install --user setuptools 2>/dev/null || true && \
     PYTHON=python3 ./configure --disable-shared --disable-tests && \
     make -j$(nproc) install && \
     rm -rf /tmp/libwally-core
