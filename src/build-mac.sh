@@ -433,8 +433,9 @@ build_desktop() {
     # ── libwally ───────────────────────────────────────────
     if [ ! -f /usr/local/lib/libwallycore.a ] && [ ! -f /opt/homebrew/lib/libwallycore.a ]; then
         info "Building libwally-core..."
+        rm -rf /tmp/libwally-core
         git clone https://github.com/ElementsProject/libwally-core \
-            --recurse-submodules -b release_0.9.2 /tmp/libwally-core 2>/dev/null || true
+            --recurse-submodules -b release_0.9.2 /tmp/libwally-core
         cd /tmp/libwally-core
         export LIBTOOL=glibtool LIBTOOLIZE=glibtoolize
         ./tools/autogen.sh
