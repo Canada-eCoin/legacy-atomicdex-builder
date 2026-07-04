@@ -437,9 +437,9 @@ build_desktop() {
         git clone https://github.com/ElementsProject/libwally-core \
             --recurse-submodules -b release_0.9.2 /tmp/libwally-core
         cd /tmp/libwally-core
-        export LIBTOOL=glibtool LIBTOOLIZE=glibtoolize
+        export LIBTOOL=glibtool LIBTOOLIZE=glibtoolize PYTHON=python3
         ./tools/autogen.sh
-        PYTHON=python3 ./configure --disable-shared --disable-tests LIBTOOL=glibtool
+        ./configure --disable-shared --disable-tests LIBTOOL=glibtool
         make -j"$BUILD_CPUS" install
         cd "$dtop_dir"
         ok "libwally installed"
