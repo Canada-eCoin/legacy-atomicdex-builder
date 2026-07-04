@@ -580,7 +580,10 @@ build_desktop() {
     (
         cd "$desktop_dir"
         git checkout -- vcpkg.json
-        "${VCPKG_ROOT}/vcpkg" install --triplet "$VCPKG_TRIPLET"
+        "${VCPKG_ROOT}/vcpkg" install \
+            --triplet "$VCPKG_TRIPLET" \
+            --overlay-ports "$desktop_dir/ci_tools_atomic_dex/vcpkg-custom-ports/ports" \
+            --overlay-triplets "$desktop_dir/cmake"
     )
 
     step "6c" "Configuring desktop build"
