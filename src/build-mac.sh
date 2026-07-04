@@ -340,8 +340,7 @@ build_kdf() {
         (cd "$kdf_dir" && git fetch origin && git checkout "$KDF_COMMIT" && git submodule update --init --recursive)
     else
         rm -rf "$kdf_dir"
-        info "Cloning KDF... this may take a few minutes (large repo)"
-        git clone "$KDF_REPO" "$kdf_dir"
+        git clone --filter=blob:none "$KDF_REPO" "$kdf_dir"
         (cd "$kdf_dir" && git checkout "$KDF_COMMIT" && git submodule update --init --recursive)
     fi
     ok "KDF source at $(cd "$kdf_dir" && git rev-parse --short HEAD)"
@@ -404,8 +403,7 @@ build_desktop() {
         (cd "$dtop_dir" && git fetch origin && git checkout "$DESKTOP_COMMIT" && git submodule update --init --recursive)
     else
         rm -rf "$dtop_dir"
-        info "Cloning desktop... this may take a few minutes (large repo)"
-        git clone "$DESKTOP_REPO" "$dtop_dir"
+        git clone --filter=blob:none "$DESKTOP_REPO" "$dtop_dir"
         (cd "$dtop_dir" && git checkout "$DESKTOP_COMMIT" && git submodule update --init --recursive)
     fi
     ok "Desktop source at $(cd "$dtop_dir" && git rev-parse --short HEAD)"

@@ -59,8 +59,7 @@ clone_source() {
     else
         step "cloning ${name} @ ${commit}"
         rm -rf "$dir"
-        info "This may take a few minutes — cloning full repo"
-        git clone "$repo" "$dir"
+        git clone --filter=blob:none "$repo" "$dir"
         (cd "$dir" && git checkout "$commit" && git submodule update --init --recursive)
     fi
     ok "${name} ready"
