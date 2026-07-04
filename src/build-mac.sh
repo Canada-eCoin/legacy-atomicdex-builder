@@ -37,7 +37,8 @@ set -euo pipefail
 
 # ── Globals ──────────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-CONFIG_DIR="${SCRIPT_DIR}/config"
+PROJECT_DIR="${SCRIPT_DIR}/.."
+CONFIG_DIR="${PROJECT_DIR}/config"
 SOURCES_JSON="${CONFIG_DIR}/sources.json"
 BRANDING_JSON="${CONFIG_DIR}/branding.json"
 
@@ -54,9 +55,9 @@ if [ "${BUILD_YES:-}" = "1" ]; then FLAG_YES=true; fi
 BUILD_CPUS="${BUILD_CPUS:-}"
 
 # Paths: ENV vars override hardcoded defaults
-OUTPUT_DIR="${OUTPUT_DIR:-${SCRIPT_DIR}/output}/mac"
-LOG_DIR="${LOG_DIR:-${SCRIPT_DIR}/logs}/mac"
-BUILD_DIR="${BUILD_DIR:-${SCRIPT_DIR}/.build}"
+OUTPUT_DIR="${OUTPUT_DIR:-${PROJECT_DIR}/output}/mac"
+LOG_DIR="${LOG_DIR:-${PROJECT_DIR}/logs}/mac"
+BUILD_DIR="${BUILD_DIR:-${PROJECT_DIR}/.build}"
 INSTALL_PREFIX="${INSTALL_PREFIX:-$HOME/.local}"
 
 for arg in "$@"; do

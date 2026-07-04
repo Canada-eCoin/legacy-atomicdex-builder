@@ -56,10 +56,11 @@ if ($Help) {
 
 # ── Globals ──────────────────────────────────────────────────
 $ScriptDir    = Split-Path -Parent $PSCommandPath
-$ConfigDir    = Join-Path $ScriptDir "config"
-$OutputDir    = Join-Path $ScriptDir "output\windows"
-$LogDir       = Join-Path $ScriptDir "logs\windows"
-$BuildDir     = Join-Path $ScriptDir ".build"
+$ProjectDir   = Split-Path -Parent $ScriptDir
+$ConfigDir    = Join-Path $ProjectDir "config"
+$OutputDir    = Join-Path $ProjectDir "output\windows"
+$LogDir       = Join-Path $ProjectDir "logs\windows"
+$BuildDir     = Join-Path $ProjectDir ".build"
 $SourcesJson  = Join-Path $ConfigDir "sources.json"
 $BrandingJson = Join-Path $ConfigDir "branding.json"
 $InstalledLog = Join-Path $LogDir "installed.log"
