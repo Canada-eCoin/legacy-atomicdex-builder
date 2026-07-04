@@ -446,7 +446,7 @@ build_desktop() {
         ./tools/autogen.sh
         # Python 3.12+ dropped distutils; setuptools provides it
         brew install python-setuptools 2>/dev/null || true
-        ./configure --disable-shared --disable-tests LIBTOOL=glibtool
+        ./configure --disable-shared --disable-tests --prefix="$(brew --prefix)" LIBTOOL=glibtool
         make -j"$BUILD_CPUS" install
         cd "$dtop_dir"
         ok "libwally installed"
