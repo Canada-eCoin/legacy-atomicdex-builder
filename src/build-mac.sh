@@ -464,15 +464,16 @@ build_desktop() {
     # ── vcpkg ──────────────────────────────────────────────
     info "Setting up vcpkg..."
     if [ ! -d ci_tools_atomic_dex/vcpkg-repo/vcpkg ]; then
-        sed -i '' '/"cpprestsdk"/d' vcpkg.json 2>/dev/null || true
-        sed -i '' '/"boost-/d' vcpkg.json 2>/dev/null || true
         cd ci_tools_atomic_dex/vcpkg-repo
         ./bootstrap-vcpkg.sh
         cd "$dtop_dir"
     fi
     export VCPKG_ROOT="${dtop_dir}/ci_tools_atomic_dex/vcpkg-repo"
+    # Restore vcpkg.json (prior runs may have stripped boost), then remove cpprestsdk only
+    git checkout vcpkg.json 2>/dev/null || true
+    sed -i '' '/"cpprestsdk"/d' vcpkg.json 2>/dev/null || true
 
-    info "Installing vcpkg packages..."
+    info "Installing vcpkg packages (boost will build from source — this takes a while)..."
     "${VCPKG_ROOT}/vcpkg" install --triplet arm64-osx 2>&1 | sed 's/^/  /'
 
     # ── Build ──────────────────────────────────────────────
