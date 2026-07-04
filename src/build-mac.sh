@@ -561,6 +561,8 @@ build_desktop() {
     export VCPKG_BUILD_TYPE=release
     export VCPKG_ROOT="${desktop_dir}/ci_tools_atomic_dex/vcpkg-repo"
     export VCPKG_DEFAULT_BINARY_CACHE="${BUILD_ROOT}/vcpkg-cache"
+    export VCPKG_BINARY_SOURCES="default,readwrite"
+    mkdir -p "$VCPKG_DEFAULT_BINARY_CACHE"
     export CMAKE_INCLUDE_PATH="${LOCAL_PREFIX}/include"
     export CMAKE_LIBRARY_PATH="${LOCAL_PREFIX}/lib"
     export LIBRARY_PATH="${LOCAL_PREFIX}/lib${LIBRARY_PATH:+:$LIBRARY_PATH}"
