@@ -2,40 +2,26 @@
 # ============================================================================
 # build-mac.sh — Native macOS build for legacy atomicdex
 # ============================================================================
-# Single source of truth for macOS builds. Runs natively on macOS —
-# no Docker required. Builds KDF as universal binary (arm64 + x86_64)
-# and optionally the desktop wallet as an unsigned .app bundle.
+# Reference path: mirrors the upstream CIPIG macOS CI shape, but swaps in the
+# locally-built KDF instead of the upstream prebuilt Gleec artifact.
 #
 # Usage:
-#   ./build-mac.sh                   # full build (KDF universal + desktop stub)
-#   ./build-mac.sh --kdf-only        # KDF engine only (universal binary)
-#   ./build-mac.sh --desktop-only    # desktop .app bundle (needs pre-built KDF)
-#   ./build-mac.sh --yes             # skip all consent prompts
-#   ./build-mac.sh --install-deps    # install missing deps without building
-#   ./build-mac.sh --dry-run         # check deps and print plan, no build
+#   ./build-mac.sh                  # full build (KDF + desktop)
+#   ./build-mac.sh --kdf-only       # KDF only
+#   ./build-mac.sh --desktop-only   # desktop only (needs output/mac/kdf)
+#   ./build-mac.sh --yes            # skip prompts
+#   ./build-mac.sh --install-deps   # install missing brew deps, then exit
+#   ./build-mac.sh --dry-run        # print plan only
 #
 # Output:
-#   output/mac/kdf                   # universal binary (arm64 + x86_64)
+#   output/mac/kdf
 #   output/mac/kdf.sha256
-#
-# Logs:
-#   logs/mac/build.log               # full build output
-#   logs/mac/installed.log           # packages installed and how to undo
-#
-# Requirements:
-#   macOS 12.0+ (Monterey or later)
-#   Xcode Command Line Tools (xcode-select --install)
-#   Homebrew (https://brew.sh)
-#
-# Desktop wallet: native macOS build requires QT5, which is large (~2-3GB).
-# The script will offer to install via Homebrew. The desktop build path
-# is structural — it follows the same cmake + vcpkg pattern as Linux but
-# targets macOS frameworks (Cocoa instead of X11, Apple Silicon native).
+#   output/mac/*.app
+#   output/mac/*.dmg                # if packaging succeeds
 # ============================================================================
 
 set -euo pipefail
 
-# ── Globals ──────────────────────────────────────────────────
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="${SCRIPT_DIR}/.."
 CONFIG_DIR="${PROJECT_DIR}/config"
@@ -47,506 +33,642 @@ FLAG_DESKTOP_ONLY=false
 FLAG_DRY_RUN=false
 FLAG_INSTALL_DEPS_ONLY=false
 
-# ── ENV var overrides ─────────────────────────────────────────
-# BUILD_YES=1 is equivalent to --yes flag
 if [ "${BUILD_YES:-}" = "1" ]; then FLAG_YES=true; fi
 
-BUILD_CPUS="${BUILD_CPUS:-}"
-
-# Paths: ENV vars override hardcoded defaults
 OUTPUT_DIR="${OUTPUT_DIR:-${PROJECT_DIR}/output}/mac"
 LOG_DIR="${LOG_DIR:-${PROJECT_DIR}/logs}/mac"
-BUILD_DIR="${BUILD_DIR:-${PROJECT_DIR}/.build}"
-INSTALL_PREFIX="${INSTALL_PREFIX:-$HOME/.local}"
+BUILD_ROOT="${BUILD_DIR:-${PROJECT_DIR}/.build}/mac"
+SDK_ROOT="${BUILD_ROOT}/sdk"
+LOCAL_PREFIX="${BUILD_ROOT}/local"
+SHIM_DIR="${BUILD_ROOT}/shims"
+
+BUILD_CPUS="${BUILD_CPUS:-}"
+if [ -z "${BUILD_CPUS}" ]; then
+    TOTAL_CPUS=$(sysctl -n hw.ncpu 2>/dev/null || echo 4)
+    BUILD_CPUS=$(( TOTAL_CPUS / 2 ))
+    [ "${BUILD_CPUS}" -lt 1 ] && BUILD_CPUS=1
+fi
 
 for arg in "$@"; do
     case "$arg" in
-        --yes|-y)              FLAG_YES=true ;;
-        --kdf-only)            FLAG_KDF_ONLY=true ;;
-        --desktop-only)        FLAG_DESKTOP_ONLY=true ;;
-        --dry-run)             FLAG_DRY_RUN=true ;;
-        --install-deps)        FLAG_INSTALL_DEPS_ONLY=true ;;
+        --yes|-y)            FLAG_YES=true ;;
+        --kdf-only)          FLAG_KDF_ONLY=true ;;
+        --desktop-only)      FLAG_DESKTOP_ONLY=true ;;
+        --dry-run)           FLAG_DRY_RUN=true ;;
+        --install-deps)      FLAG_INSTALL_DEPS_ONLY=true ;;
         --help|-h)
-            sed -n '2,30p' "$0" | grep -v '^#!/'
+            sed -n '2,22p' "$0" | grep -v '^#!/'
             exit 0
             ;;
     esac
 done
 
-# CPU count
-if [ -z "${BUILD_CPUS:-}" ]; then
-    TOTAL_CPUS=$(sysctl -n hw.ncpu 2>/dev/null || echo 4)
-    BUILD_CPUS=$(( TOTAL_CPUS / 2 ))  # macOS: use half (Thermal pressure)
-    [ "$BUILD_CPUS" -lt 1 ] && BUILD_CPUS=1
-fi
+KDF_REPO="${KDF_REPO:-}"
+KDF_COMMIT="${KDF_COMMIT:-}"
+DESKTOP_REPO="${DESKTOP_REPO:-}"
+DESKTOP_COMMIT="${DESKTOP_COMMIT:-}"
 
-# ── Read config (ENV vars override config files) ──────────────
-# For each: ENV var > config file > hardcoded fallback
-KDF_REPO="${KDF_REPO:-$(jq -r '.kdf.repo' "$SOURCES_JSON")}"
-KDF_COMMIT="${KDF_COMMIT:-$(jq -r '.kdf.commit' "$SOURCES_JSON")}"
-DESKTOP_REPO="${DESKTOP_REPO:-$(jq -r '.desktop.repo' "$SOURCES_JSON")}"
-DESKTOP_COMMIT="${DESKTOP_COMMIT:-$(jq -r '.desktop.commit' "$SOURCES_JSON")}"
-APP_NAME="${APP_NAME:-}"
-APP_WEBSITE="${APP_WEBSITE:-}"
-SEED_URL="${SEED_URL:-}"
-APPLE_TEAM_ID="${APPLE_TEAM_ID:-}"
-APPLE_DEVELOPER_ID="${APPLE_DEVELOPER_ID:-}"
+mkdir -p "$OUTPUT_DIR" "$LOG_DIR" "$BUILD_ROOT" "$SDK_ROOT" "$LOCAL_PREFIX"
+export PATH="$HOME/.cargo/bin:$PATH"
+exec > >(tee -a "${LOG_DIR}/build.log") 2>&1
 
-mkdir -p "$OUTPUT_DIR" "$LOG_DIR" "$BUILD_DIR"
-INSTALLED_LOG="${LOG_DIR}/installed.log"
-
-# ── Colors ───────────────────────────────────────────────────
-C_RESET='\033[0m'; C_BOLD='\033[1m'; C_GREEN='\033[32m'
-C_YELLOW='\033[33m'; C_RED='\033[31m'; C_CYAN='\033[36m'
+C_RESET='\033[0m'
+C_BOLD='\033[1m'
+C_GREEN='\033[32m'
+C_YELLOW='\033[33m'
+C_RED='\033[31m'
+C_CYAN='\033[36m'
 
 step()  { echo -e "${C_BOLD}${C_CYAN}Step $1${C_RESET}: $2"; }
 ok()    { echo -e "  ${C_GREEN}✓${C_RESET} $1"; }
 warn()  { echo -e "  ${C_YELLOW}⚠${C_RESET} $1"; }
 fail()  { echo -e "  ${C_RED}✗${C_RESET} $1"; }
 info()  { echo -e "    $1"; }
+die()   { fail "$1"; exit 1; }
 
-exec > >(tee -a "${LOG_DIR}/build.log") 2>&1
+MISSING_BREW_PACKAGES=()
+MISSING_NOTES=()
+HAVE_BREW=true
+PYTHON_BIN=""
+QT_INSTALL_CMAKE_PATH_RESOLVED=""
+QT_ROOT_RESOLVED=""
+SDK_PATH_RESOLVED=""
+HOST_ARCH=""
+RUST_TARGET=""
+VCPKG_TRIPLET=""
 
-# ═══════════════════════════════════════════════════════════════
-# Platform detection
-# ═══════════════════════════════════════════════════════════════
+append_unique() {
+    local value="$1"
+    shift || true
+    local existing
+    for existing in "$@"; do
+        [ "$existing" = "$value" ] && return 0
+    done
+    return 1
+}
 
-detect_platform() {
-    local arch os_ver
-
-    if [[ "$(uname -s)" != "Darwin" ]]; then
-        echo ""
-        echo -e "${C_RED}╔══════════════════════════════════════════════════════════╗${C_RESET}"
-        echo -e "${C_RED}║  This script only runs on macOS.                        ║${C_RESET}"
-        echo -e "${C_RED}║  Detected: $(uname -s)                                   ║${C_RESET}"
-        echo -e "${C_RED}╚══════════════════════════════════════════════════════════╝${C_RESET}"
-        exit 1
-    fi
-
-    arch=$(uname -m)
-    os_ver=$(sw_vers -productVersion 2>/dev/null || echo "unknown")
-
-    step "0/6" "Platform: macOS ${os_ver} (${arch})"
-
-    # Warn if building on Intel — Apple Silicon is preferred
-    if [ "$arch" = "x86_64" ]; then
-        warn "Building on Intel Mac. Universal binary will only have x86_64."
-        warn "For arm64, build on Apple Silicon or cross-compile."
+add_missing_formula() {
+    local formula="$1"
+    local note="$2"
+    if ! append_unique "$formula" "${MISSING_BREW_PACKAGES[@]:-}"; then
+        MISSING_BREW_PACKAGES+=("$formula")
+        MISSING_NOTES+=("$formula — $note")
     fi
 }
 
-# ═══════════════════════════════════════════════════════════════
-# Dependency checking
-# ═══════════════════════════════════════════════════════════════
+host_setup() {
+    case "$(uname -m)" in
+        arm64)
+            HOST_ARCH="arm64"
+            RUST_TARGET="aarch64-apple-darwin"
+            VCPKG_TRIPLET="arm64-osx"
+            ;;
+        x86_64)
+            HOST_ARCH="x86_64"
+            RUST_TARGET="x86_64-apple-darwin"
+            VCPKG_TRIPLET="x64-osx"
+            ;;
+        *)
+            die "Unsupported macOS architecture: $(uname -m)"
+            ;;
+    esac
+}
+
+read_sources() {
+    [ -f "$SOURCES_JSON" ] || die "Missing sources config: $SOURCES_JSON"
+
+    if [ -z "$KDF_REPO" ]; then
+        KDF_REPO="$(jq -r '.kdf.repo' "$SOURCES_JSON")"
+    fi
+    if [ -z "$KDF_COMMIT" ]; then
+        KDF_COMMIT="$(jq -r '.kdf.commit' "$SOURCES_JSON")"
+    fi
+    if [ -z "$DESKTOP_REPO" ]; then
+        DESKTOP_REPO="$(jq -r '.desktop.repo' "$SOURCES_JSON")"
+    fi
+    if [ -z "$DESKTOP_COMMIT" ]; then
+        DESKTOP_COMMIT="$(jq -r '.desktop.commit' "$SOURCES_JSON")"
+    fi
+}
+
+check_python() {
+    if command -v python3.11 >/dev/null 2>&1 && python3.11 -c 'import distutils' >/dev/null 2>&1; then
+        ok "python3.11 — upstream-compatible Python"
+        return 0
+    fi
+
+    if command -v python3 >/dev/null 2>&1 && python3 -c 'import distutils' >/dev/null 2>&1; then
+        ok "python3 — usable Python with distutils"
+        return 0
+    fi
+
+    fail "Python with distutils support not found"
+    add_missing_formula "python@3.11" "upstream CI uses Python 3.11; newer Python drops distutils"
+    return 1
+}
+
+check_qt() {
+    if [ -n "${QT_INSTALL_CMAKE_PATH:-}" ] && [ -f "${QT_INSTALL_CMAKE_PATH}/Qt5/Qt5Config.cmake" ]; then
+        ok "Qt5 — from QT_INSTALL_CMAKE_PATH"
+        return 0
+    fi
+
+    if command -v brew >/dev/null 2>&1; then
+        local qt_prefix
+        qt_prefix="$(brew --prefix qt@5 2>/dev/null || true)"
+        if [ -n "$qt_prefix" ] && [ -f "$qt_prefix/lib/cmake/Qt5/Qt5Config.cmake" ] && [ -x "$qt_prefix/bin/macdeployqt" ]; then
+            ok "qt@5 — Homebrew Qt5"
+            return 0
+        fi
+    fi
+
+    fail "Qt5 not found"
+    add_missing_formula "qt@5" "desktop build needs Qt 5 + macdeployqt"
+    return 1
+}
 
 check_all_deps() {
-    local total_missing=0
-
     echo ""
     echo -e "${C_BOLD}── Checking system dependencies ──${C_RESET}"
     echo ""
 
-    # ── Xcode CLI tools ────────────────────────────────────
-    echo -e "${C_BOLD}Xcode CLI Tools:${C_RESET}"
-    if xcode-select -p &>/dev/null; then
-        ok "Xcode CLI tools installed"
+    echo -e "${C_BOLD}Platform:${C_RESET}"
+    if [ "$(uname -s)" != "Darwin" ]; then
+        die "This script only runs on macOS"
+    fi
+    ok "macOS $(sw_vers -productVersion 2>/dev/null || echo unknown) ($(uname -m))"
+
+    echo ""
+    echo -e "${C_BOLD}Xcode:${C_RESET}"
+    if xcode-select -p >/dev/null 2>&1; then
+        ok "Xcode Command Line Tools installed"
     else
-        fail "Xcode CLI tools are not installed (needed for compilers + SDK)"
-        suggest_install "Xcode CLI tools" "C/C++ compiler, SDK headers (~2.5GB)" \
-            'xcode-select --install'
-        ((total_missing++))
+        fail "Xcode Command Line Tools missing"
+        MISSING_NOTES+=("Xcode CLI Tools — run: xcode-select --install")
     fi
 
-    # ── Homebrew ───────────────────────────────────────────
     echo ""
     echo -e "${C_BOLD}Homebrew:${C_RESET}"
-    if command -v brew &>/dev/null; then
+    if command -v brew >/dev/null 2>&1; then
         ok "Homebrew installed"
     else
-        fail "Homebrew is not installed (needed for cmake, QT5, libs)"
-        suggest_install "Homebrew" "Package manager for macOS" \
-            '/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"'
-        ((total_missing++))
+        HAVE_BREW=false
+        fail "Homebrew missing"
+        MISSING_NOTES+=("Homebrew — install from https://brew.sh")
     fi
 
-    # ── Build tools ────────────────────────────────────────
     echo ""
     echo -e "${C_BOLD}Build tools:${C_RESET}"
-    check_cmd cmake  "cmake"           "build system (4.3+)"   || ((total_missing++))
-    check_cmd ninja  "ninja"           "fast build"             || ((total_missing++))
-    check_cmd jq     "jq"              "JSON parser"            || ((total_missing++))
-    check_cmd git    "git"             "version control"        || ((total_missing++))
-    check_cmd curl   "curl"            "downloads"              || ((total_missing++))
+    command -v jq >/dev/null 2>&1        && ok "jq — config parsing"                || { fail "jq missing"; add_missing_formula "jq" "config parsing"; }
+    command -v git >/dev/null 2>&1       && ok "git — source checkout"             || { fail "git missing"; add_missing_formula "git" "source checkout"; }
+    command -v curl >/dev/null 2>&1      && ok "curl — downloads"                  || { fail "curl missing"; add_missing_formula "curl" "downloads"; }
+    command -v cmake >/dev/null 2>&1     && ok "cmake — configure/build"           || { fail "cmake missing"; add_missing_formula "cmake" "configure/build"; }
+    command -v ninja >/dev/null 2>&1     && ok "ninja — build backend"             || { fail "ninja missing"; add_missing_formula "ninja" "build backend"; }
+    command -v rustup >/dev/null 2>&1    && ok "rustup — Rust toolchain"           || { fail "rustup missing"; add_missing_formula "rustup-init" "Rust toolchain"; }
+    command -v cargo >/dev/null 2>&1     && ok "cargo — Rust build"                || { fail "cargo missing"; add_missing_formula "rustup-init" "Rust build"; }
+    command -v autoconf >/dev/null 2>&1  && ok "autoconf — libwally build"         || { fail "autoconf missing"; add_missing_formula "autoconf" "libwally build"; }
+    command -v automake >/dev/null 2>&1  && ok "automake — libwally build"         || { fail "automake missing"; add_missing_formula "automake" "libwally build"; }
+    command -v glibtool >/dev/null 2>&1  && ok "glibtool — GNU libtool"            || { fail "glibtool missing"; add_missing_formula "libtool" "GNU libtool on macOS"; }
+    command -v glibtoolize >/dev/null 2>&1 && ok "glibtoolize — GNU libtoolize"    || { fail "glibtoolize missing"; add_missing_formula "libtool" "GNU libtoolize on macOS"; }
 
-    # cmake version check
-    if command -v cmake &>/dev/null; then
-        local cmake_ver
-        cmake_ver=$(cmake --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+' | head -1 || echo "0.0")
-        if [ "$(printf '%s\n' "4.3" "$cmake_ver" | sort -V | head -1)" != "4.3" ]; then
-            warn "cmake $cmake_ver is too old — 4.3+ recommended"
-            suggest_install "cmake 4.3+" "vcpkg needs cmake 4.3+" 'brew install cmake'
+    if $HAVE_BREW; then
+        if brew list --formula autoconf-archive >/dev/null 2>&1; then
+            ok "autoconf-archive — vcpkg dependency"
+        else
+            fail "autoconf-archive missing"
+            add_missing_formula "autoconf-archive" "vcpkg dependency"
         fi
     fi
 
-    # ── Rust ────────────────────────────────────────────────
-    echo ""
-    echo -e "${C_BOLD}Rust toolchain:${C_RESET}"
-    check_cmd rustup "rustup"          "Rust toolchain manager" || ((total_missing++))
-    check_cmd cargo  "cargo"           "Rust build system"      || ((total_missing++))
+    check_python || true
 
-    if ! command -v rustup &>/dev/null; then
-        suggest_install "rustup" "Rust toolchain (~1.5GB)" \
-            'curl --proto "=https" --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y && source "$HOME/.cargo/env"'
-    fi
-
-    # ── Crypto libs ─────────────────────────────────────────
-    echo ""
-    echo -e "${C_BOLD}Crypto & network:${C_RESET}"
-    if [ -e /usr/local/opt/openssl@3/include/openssl/ssl.h ] || \
-       [ -e /opt/homebrew/opt/openssl@3/include/openssl/ssl.h ]; then
-        ok "openssl@3 — OpenSSL headers"
-    else
-        fail "openssl@3 is not installed — TLS/crypto support"
-        echo -e "  ${C_YELLOW}→ Install:${C_RESET} brew install openssl@3"
-        ((total_missing++))
-    fi
-
-    # ── Protobuf ────────────────────────────────────────────
-    check_cmd protoc "protobuf"        "Protocol Buffers compiler" || ((total_missing++))
-
-    # ── Desktop deps (only if building desktop) ─────────────
     if ! $FLAG_KDF_ONLY; then
         echo ""
-        echo -e "${C_BOLD}Desktop wallet (QT5, ~2.5GB):${C_RESET}"
-        if [ -e /usr/local/opt/qt@5/lib/cmake/Qt5/Qt5Config.cmake ] || \
-           [ -e /opt/homebrew/opt/qt@5/lib/cmake/Qt5/Qt5Config.cmake ]; then
-            ok "qt@5 — QT5 framework"
-        else
-            fail "qt@5 is not installed — QT5 framework (~2.1GB)"
-            echo -e "  ${C_YELLOW}→ Install:${C_RESET} brew install qt@5"
-            ((total_missing++))
-        fi
-        if [ -e /usr/local/opt/cpprestsdk/include/cpprest/http_client.h ] || \
-           [ -e /opt/homebrew/opt/cpprestsdk/include/cpprest/http_client.h ]; then
-            ok "cpprestsdk — C++ REST SDK"
-        else
-            fail "cpprestsdk is not installed — HTTP client library"
-            echo -e "  ${C_YELLOW}→ Install:${C_RESET} brew install cpprestsdk"
-            ((total_missing++))
-        fi
-        # libwally + vcpkg build deps (needs GNU autotools, not Apple's)
-        check_cmd automake          "automake"          "autotools" || ((total_missing++))
-        check_cmd autoconf          "autoconf"          "autotools" || ((total_missing++))
-        check_cmd glibtool          "libtool"           "GNU libtool (not Apple's)" || ((total_missing++))
-        check_cmd gsed              "gnu-sed"           "libwally autogen.sh"       || ((total_missing++))
-        check_cmd python3           "python3"           "Python dev headers"        || ((total_missing++))
-        # autoconf-archive: header-only, no binary — just check brew has it
-        brew list autoconf-archive &>/dev/null || {
-            fail "autoconf-archive is not installed — vcpkg needs it"
-            echo -e "  ${C_YELLOW}→ Install:${C_RESET} brew install autoconf-archive"
-            ((total_missing++))
-        }
+        echo -e "${C_BOLD}Desktop-specific:${C_RESET}"
+        check_qt || true
     fi
 
     echo ""
-    if [ "$total_missing" -gt 0 ]; then
-        echo -e "${C_YELLOW}${total_missing} dependencies missing.${C_RESET}"
-    else
+    if [ "${#MISSING_NOTES[@]}" -eq 0 ] && [ "${#MISSING_BREW_PACKAGES[@]}" -eq 0 ]; then
         echo -e "${C_GREEN}All dependencies present.${C_RESET}"
+    else
+        echo -e "${C_YELLOW}Missing prerequisites detected.${C_RESET}"
     fi
-
-    return $total_missing
 }
 
-suggest_install() {
-    local pkg="$1"; local why="$2"; local cmd="$3"
-    echo -e "  ${C_YELLOW}→ Install:${C_RESET} $cmd"
-    echo -e "  ${C_YELLOW}  Why:${C_RESET} $why"
-    echo -e "  ${C_YELLOW}  Size:${C_RESET} ${4:-}"
-}
-
-check_cmd() {
-    local bin="$1"; local pkg="$2"; local why="$3"
-    if [ -e "$bin" ] 2>/dev/null; then
-        ok "$pkg — $why"; return 0
-    elif command -v "$bin" &>/dev/null; then
-        ok "$pkg — $why"; return 0
+print_missing_summary() {
+    local note
+    echo ""
+    echo -e "${C_YELLOW}Missing items:${C_RESET}"
+    for note in "${MISSING_NOTES[@]:-}"; do
+        [ -n "$note" ] && echo "  - $note"
+    done
+    if [ "${#MISSING_BREW_PACKAGES[@]}" -gt 0 ]; then
+        echo ""
+        echo "  brew install ${MISSING_BREW_PACKAGES[*]}"
     fi
-    fail "$pkg is not installed — $why"
-    echo -e "  ${C_YELLOW}→ Install:${C_RESET} brew install $pkg"
-    return 1
 }
-
-# ═══════════════════════════════════════════════════════════════
-# Install deps with consent
-# ═══════════════════════════════════════════════════════════════
 
 install_missing_deps() {
-    local missing_count="$1"
-    if [ "$missing_count" -eq 0 ]; then return 0; fi
-
-    local brew_pkgs="cmake ninja jq git curl protobuf openssl@3 rustup-init automake autoconf autoconf-archive libtool gnu-sed python3"
-    local qt_pkgs="qt@5 cpprestsdk"
-
-    echo ""
-    echo -e "${C_YELLOW}╔══════════════════════════════════════════════════════════╗${C_RESET}"
-    echo -e "${C_YELLOW}║  Homebrew will install these packages:                  ║${C_RESET}"
-    echo -e "${C_YELLOW}╚══════════════════════════════════════════════════════════╝${C_RESET}"
-    echo ""
-    echo "  brew install ${brew_pkgs}"
-    if ! $FLAG_KDF_ONLY; then
-        echo "  brew install ${qt_pkgs}"
-        info "QT5 estimated: ~2.5GB (includes QtWebEngine with Chromium)"
-    fi
-    echo ""
-    info "Total download: ~1.5-4GB depending on what's missing"
-
-    if $FLAG_YES; then
-        echo "  (--yes: installing automatically)"
-    elif ! $FLAG_DRY_RUN; then
-        echo -n "Install now? [Y/n] "
-        read -r answer
-        if [ "$answer" = "n" ] || [ "$answer" = "N" ]; then
-            echo "Cannot build without these. Re-run with --install-deps to just install deps."
-            return 1
-        fi
-    fi
-
-    if $FLAG_DRY_RUN; then
-        echo "  [DRY RUN] would install packages now"
+    if [ "${#MISSING_BREW_PACKAGES[@]}" -eq 0 ]; then
         return 0
     fi
 
-    for pkg in $brew_pkgs; do
-        brew list "$pkg" &>/dev/null && info "$pkg already installed" || {
-            info "Installing $pkg..."
-            brew install "$pkg" || warn "Failed to install $pkg — continuing"
-        }
-    done
-
-    if ! $FLAG_KDF_ONLY; then
-        for pkg in $qt_pkgs; do
-            brew list "$pkg" &>/dev/null && info "$pkg already installed" || {
-                info "Installing $pkg..."
-                brew install "$pkg" || warn "Failed to install $pkg — continuing"
-            }
-        done
+    if ! $HAVE_BREW; then
+        die "Homebrew is required before I can install missing packages"
     fi
 
-    ok "Dependencies installed"
+    print_missing_summary
 
-    # Undo note
-    echo "# Packages installed by build-mac.sh on $(date -Iseconds)" >> "$INSTALLED_LOG"
-    echo "# To undo: brew uninstall ${brew_pkgs} ${qt_pkgs}" >> "$INSTALLED_LOG"
+    if $FLAG_DRY_RUN; then
+        info "[DRY RUN] would install missing Homebrew packages"
+        return 0
+    fi
+
+    if ! $FLAG_YES; then
+        echo ""
+        echo -n "Install missing packages now? [Y/n] "
+        read -r answer
+        if [ "$answer" = "n" ] || [ "$answer" = "N" ]; then
+            die "Cannot continue without these dependencies"
+        fi
+    fi
+
+    local formula
+    for formula in "${MISSING_BREW_PACKAGES[@]}"; do
+        if brew list --formula "$formula" >/dev/null 2>&1; then
+            info "$formula already installed"
+        else
+            info "Installing $formula..."
+            brew install "$formula"
+        fi
+
+        if [ "$formula" = "rustup-init" ] && ! command -v rustup >/dev/null 2>&1; then
+            info "Bootstrapping Rust toolchain..."
+            rustup-init -y
+            export PATH="$HOME/.cargo/bin:$PATH"
+        fi
+    done
 }
 
-# ═══════════════════════════════════════════════════════════════
-# Build: KDF engine (universal binary)
-# ═══════════════════════════════════════════════════════════════
+resolve_python() {
+    if command -v python3.11 >/dev/null 2>&1 && python3.11 -c 'import distutils' >/dev/null 2>&1; then
+        PYTHON_BIN="$(command -v python3.11)"
+        return
+    fi
+    if command -v python3 >/dev/null 2>&1 && python3 -c 'import distutils' >/dev/null 2>&1; then
+        PYTHON_BIN="$(command -v python3)"
+        return
+    fi
+
+    if command -v brew >/dev/null 2>&1; then
+        local candidate
+        candidate="$(brew --prefix python@3.11 2>/dev/null || true)/bin/python3.11"
+        if [ -x "$candidate" ] && "$candidate" -c 'import distutils' >/dev/null 2>&1; then
+            PYTHON_BIN="$candidate"
+            return
+        fi
+    fi
+
+    die "Could not resolve a usable Python interpreter"
+}
+
+resolve_qt() {
+    local qt_prefix=""
+    local qt_macdeploy=""
+
+    if [ -n "${QT_INSTALL_CMAKE_PATH:-}" ] && [ -f "${QT_INSTALL_CMAKE_PATH}/Qt5/Qt5Config.cmake" ]; then
+        QT_INSTALL_CMAKE_PATH_RESOLVED="$QT_INSTALL_CMAKE_PATH"
+        if [ -n "${QT_ROOT:-}" ] && [ -x "${QT_ROOT}/clang_64/bin/macdeployqt" ]; then
+            QT_ROOT_RESOLVED="$QT_ROOT"
+            return
+        fi
+        qt_prefix="$(cd "${QT_INSTALL_CMAKE_PATH}/../.." && pwd)"
+        qt_macdeploy="$qt_prefix/bin/macdeployqt"
+        [ -x "$qt_macdeploy" ] || die "QT_INSTALL_CMAKE_PATH is set, but macdeployqt was not found next to it"
+    else
+        qt_prefix="$(brew --prefix qt@5 2>/dev/null || true)"
+        [ -n "$qt_prefix" ] || die "qt@5 not installed"
+        [ -f "$qt_prefix/lib/cmake/Qt5/Qt5Config.cmake" ] || die "Qt5Config.cmake not found in qt@5"
+        qt_macdeploy="$qt_prefix/bin/macdeployqt"
+        [ -x "$qt_macdeploy" ] || die "macdeployqt not found in qt@5"
+        QT_INSTALL_CMAKE_PATH_RESOLVED="$qt_prefix/lib/cmake"
+    fi
+
+    QT_ROOT_RESOLVED="${BUILD_ROOT}/Qt/5.15.2"
+    mkdir -p "${QT_ROOT_RESOLVED}/clang_64/bin" "${BUILD_ROOT}/Qt/Tools/QtInstallerFramework"
+    ln -sf "$qt_macdeploy" "${QT_ROOT_RESOLVED}/clang_64/bin/macdeployqt"
+}
+
+ensure_sdk() {
+    if [ -n "${MACOS_SDK_PATH:-}" ] && [ -d "${MACOS_SDK_PATH}" ]; then
+        SDK_PATH_RESOLVED="$MACOS_SDK_PATH"
+        ok "Using MACOS_SDK_PATH → $SDK_PATH_RESOLVED"
+        return
+    fi
+
+    if [ -d "$HOME/sdk/MacOSX11.3.sdk" ]; then
+        SDK_PATH_RESOLVED="$HOME/sdk/MacOSX11.3.sdk"
+        ok "Using cached SDK → $SDK_PATH_RESOLVED"
+        return
+    fi
+
+    if [ -d "${SDK_ROOT}/MacOSX11.3.sdk" ]; then
+        SDK_PATH_RESOLVED="${SDK_ROOT}/MacOSX11.3.sdk"
+        ok "Using project SDK → $SDK_PATH_RESOLVED"
+        return
+    fi
+
+    if $FLAG_DRY_RUN; then
+        info "[DRY RUN] would download MacOSX11.3.sdk"
+        SDK_PATH_RESOLVED="${SDK_ROOT}/MacOSX11.3.sdk"
+        return
+    fi
+
+    step "prep" "Downloading MacOSX11.3 SDK (upstream CI parity)..."
+    local sdk_tar="${SDK_ROOT}/MacOSX11.3.sdk.tar.xz"
+    curl -L "https://github.com/phracker/MacOSX-SDKs/releases/download/11.3/MacOSX11.3.sdk.tar.xz" -o "$sdk_tar"
+    tar -xf "$sdk_tar" -C "$SDK_ROOT"
+    SDK_PATH_RESOLVED="${SDK_ROOT}/MacOSX11.3.sdk"
+    ok "SDK ready → $SDK_PATH_RESOLVED"
+}
+
+prepare_shims() {
+    mkdir -p "$SHIM_DIR"
+    ln -sf "$PYTHON_BIN" "$SHIM_DIR/python"
+    ln -sf "$(command -v glibtoolize)" "$SHIM_DIR/libtoolize"
+    ln -sf "$(command -v glibtool)" "$SHIM_DIR/libtool"
+    export PATH="$SHIM_DIR:$PATH"
+}
+
+checkout_repo() {
+    local repo_url="$1"
+    local repo_dir="$2"
+    local ref="$3"
+
+    if [ -d "$repo_dir/.git" ]; then
+        info "Updating $(basename "$repo_dir")..."
+        (
+            cd "$repo_dir"
+            git fetch origin
+            git checkout "$ref"
+            git reset --hard "$ref"
+            git clean -fdx
+            git submodule sync --recursive
+            git submodule update --init --recursive
+        )
+    else
+        info "Cloning $(basename "$repo_dir") — full history, pinned checkout"
+        git clone "$repo_url" "$repo_dir"
+        (
+            cd "$repo_dir"
+            git checkout "$ref"
+            git submodule sync --recursive
+            git submodule update --init --recursive
+        )
+    fi
+}
 
 build_kdf() {
-    step "3/6" "Cloning KDF source (pinned commit ${KDF_COMMIT})..."
-    local kdf_dir="${BUILD_DIR}/kdf"
+    local kdf_dir="${BUILD_ROOT}/kdf"
 
-    if [ -d "$kdf_dir/.git" ]; then
-        (cd "$kdf_dir" && git fetch origin && git checkout "$KDF_COMMIT" && git submodule update --init --recursive)
-    else
-        rm -rf "$kdf_dir"
-        info "Cloning KDF — large repo, years of history — grab a coffee"
-        git clone "$KDF_REPO" "$kdf_dir"
-        (cd "$kdf_dir" && git checkout "$KDF_COMMIT" && git submodule update --init --recursive)
-    fi
+    step "3/6" "Preparing KDF source (${KDF_COMMIT})"
+    checkout_repo "$KDF_REPO" "$kdf_dir" "$KDF_COMMIT"
     ok "KDF source at $(cd "$kdf_dir" && git rev-parse --short HEAD)"
 
-    step "4/6" "Building KDF — arm64 target..."
-    cd "$kdf_dir"
-    rustup target add aarch64-apple-darwin 2>/dev/null || true
+    step "4/6" "Building KDF for ${HOST_ARCH} (${RUST_TARGET})"
+    (
+        cd "$kdf_dir"
+        rustup target add "$RUST_TARGET" >/dev/null 2>&1 || true
+        cargo build --release --target "$RUST_TARGET" -p mm2_bin_lib -j "$BUILD_CPUS"
+    )
 
-    export SOURCE_DATE_EPOCH="${SOURCE_DATE_EPOCH:-$(git log -1 --format=%ct)}"
-
-    cargo build --release \
-        --target aarch64-apple-darwin \
-        -p mm2_bin_lib \
-        -j "$BUILD_CPUS" 2>&1 | sed 's/^/  /'
-
-    cp "target/aarch64-apple-darwin/release/kdf" "${OUTPUT_DIR}/kdf-arm64"
-    ok "KDF arm64 built"
-
-    # ── x86_64 target ──────────────────────────────────────
-    info "Building KDF — x86_64 target..."
-    rustup target add x86_64-apple-darwin 2>/dev/null || true
-
-    cargo build --release \
-        --target x86_64-apple-darwin \
-        -p mm2_bin_lib \
-        -j "$BUILD_CPUS" 2>&1 | sed 's/^/  /'
-
-    cp "target/x86_64-apple-darwin/release/kdf" "${OUTPUT_DIR}/kdf-x86_64"
-    ok "KDF x86_64 built"
-
-    # ── Combine: universal binary ───────────────────────────
-    step "4b" "Combining into universal binary..."
-    lipo "${OUTPUT_DIR}/kdf-arm64" "${OUTPUT_DIR}/kdf-x86_64" \
-        -create -output "${OUTPUT_DIR}/kdf" 2>/dev/null || {
-        warn "lipo failed — using arm64 binary as fallback"
-        cp "${OUTPUT_DIR}/kdf-arm64" "${OUTPUT_DIR}/kdf"
-    }
-
-    rm -f "${OUTPUT_DIR}/kdf-arm64" "${OUTPUT_DIR}/kdf-x86_64"
-
-    sha256sum "${OUTPUT_DIR}/kdf" | cut -d" " -f1 > "${OUTPUT_DIR}/kdf.sha256"
-
-    local size
-    size=$(du -h "${OUTPUT_DIR}/kdf" | cut -f1)
-    ok "KDF universal binary — ${size} → ${OUTPUT_DIR}/kdf"
-    ok "SHA256: $(cat "${OUTPUT_DIR}/kdf.sha256")"
-
-    cd "$SCRIPT_DIR"
+    cp "$kdf_dir/target/${RUST_TARGET}/release/kdf" "$OUTPUT_DIR/kdf"
+    shasum -a 256 "$OUTPUT_DIR/kdf" | awk '{print $1}' > "$OUTPUT_DIR/kdf.sha256"
+    ok "KDF → $OUTPUT_DIR/kdf"
+    ok "SHA256: $(cat "$OUTPUT_DIR/kdf.sha256")"
 }
 
-# ═══════════════════════════════════════════════════════════════
-# Build: Desktop wallet (macOS .app bundle) — structural skeleton
-# ═══════════════════════════════════════════════════════════════
+apply_local_kdf_patch() {
+    local desktop_dir="$1"
+    mkdir -p "$desktop_dir/assets/tools/kdf"
+    cp "$OUTPUT_DIR/kdf" "$desktop_dir/assets/tools/kdf/kdf"
+
+    "$PYTHON_BIN" - "$desktop_dir/CMakeLists.txt" <<'PY'
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+text = path.read_text()
+
+old_block = '''if (APPLE)
+    FetchContent_Declare(kdf
+            URL https://devbuilds.gleec.com/dev/kdf_a12695e-mac-x86-64.zip)
+elseif (UNIX AND NOT APPLE)
+    FetchContent_Declare(kdf
+            URL https://devbuilds.gleec.com/dev/kdf_a12695e-linux-x86-64.zip)
+else ()
+    FetchContent_Declare(kdf
+            URL https://devbuilds.gleec.com/dev/kdf_a12695e-win-x86-64.zip)
+endif ()
+'''
+new_block = '# Local KDF is staged by build-mac.sh; do not fetch upstream devbuilds.\n'
+
+old_make_available = 'FetchContent_MakeAvailable(kdf jl777-coins qmaterial)'
+new_make_available = 'FetchContent_MakeAvailable(jl777-coins qmaterial)'
+
+old_copy = '    configure_file(${kdf_SOURCE_DIR}/kdf ${CMAKE_CURRENT_SOURCE_DIR}/assets/tools/kdf/${DEX_API} COPYONLY)'
+new_copy = '    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/assets/tools/kdf/kdf ${CMAKE_CURRENT_SOURCE_DIR}/assets/tools/kdf/${DEX_API} COPYONLY)'
+
+if old_block not in text:
+    raise SystemExit('kdf FetchContent block not found in CMakeLists.txt')
+if old_make_available not in text:
+    raise SystemExit('FetchContent_MakeAvailable block not found in CMakeLists.txt')
+if old_copy not in text:
+    raise SystemExit('local kdf configure_file seam not found in CMakeLists.txt')
+
+text = text.replace(old_block, new_block, 1)
+text = text.replace(old_make_available, new_make_available, 1)
+text = text.replace(old_copy, new_copy, 1)
+path.write_text(text)
+PY
+}
+
+build_libwally() {
+    local libwally_dir="${BUILD_ROOT}/libwally-core"
+
+    if [ -f "${LOCAL_PREFIX}/lib/libwallycore.a" ] && [ -f "${LOCAL_PREFIX}/include/wally_core.h" ]; then
+        ok "libwally already installed in ${LOCAL_PREFIX}"
+        return
+    fi
+
+    step "5/6" "Building libwally-core into local prefix"
+    if [ -d "$libwally_dir/.git" ]; then
+        (
+            cd "$libwally_dir"
+            git fetch origin --tags
+            git checkout release_0.9.2
+            git reset --hard release_0.9.2
+            git clean -fdx
+            git submodule sync --recursive
+            git submodule update --init --recursive
+        )
+    else
+        git clone --recurse-submodules --branch release_0.9.2 https://github.com/ElementsProject/libwally-core "$libwally_dir"
+    fi
+
+    (
+        cd "$libwally_dir"
+        env PATH="$SHIM_DIR:$PATH" LIBTOOL=glibtool LIBTOOLIZE=glibtoolize CC=clang CXX=clang++ ./tools/autogen.sh
+        env PATH="$SHIM_DIR:$PATH" LIBTOOL=glibtool LIBTOOLIZE=glibtoolize CC=clang CXX=clang++ \
+            ./configure --disable-shared --disable-tests --prefix="$LOCAL_PREFIX"
+        make -j"$BUILD_CPUS"
+        make install
+    )
+
+    ok "libwally installed → ${LOCAL_PREFIX}"
+}
 
 build_desktop() {
-    # brew doesn't provide bare 'python' or 'libtoolize' — vcpkg/libwally need them
-    mkdir -p /tmp/pybind
-    ln -sf "$(which python3)" /tmp/pybind/python 2>/dev/null || true
-    ln -sf "$(which glibtoolize 2>/dev/null || echo /opt/homebrew/bin/glibtoolize)" /tmp/pybind/libtoolize 2>/dev/null || true
-    export PATH="/tmp/pybind:$PATH"
+    local desktop_dir="${BUILD_ROOT}/desktop"
+    local build_dir="${desktop_dir}/ci_tools_atomic_dex/build-Release"
+    local dmg_found=""
+    local app_found=""
 
-    step "5/6" "Cloning desktop source (pinned commit ${DESKTOP_COMMIT})..."
-    local dtop_dir="${BUILD_DIR}/desktop"
+    [ -f "$OUTPUT_DIR/kdf" ] || die "KDF binary not found at $OUTPUT_DIR/kdf — run: ./commands/build/command.sh native kdf"
 
-    if [ -d "$dtop_dir/.git" ]; then
-        (cd "$dtop_dir" && git fetch origin && git checkout "$DESKTOP_COMMIT" && git submodule update --init --recursive)
-    else
-        rm -rf "$dtop_dir"
-        info "Cloning desktop — large repo, years of history — grab another coffee"
-        git clone "$DESKTOP_REPO" "$dtop_dir"
-        (cd "$dtop_dir" && git checkout "$DESKTOP_COMMIT" && git submodule update --init --recursive)
-    fi
-    ok "Desktop source at $(cd "$dtop_dir" && git rev-parse --short HEAD)"
+    resolve_python
+    resolve_qt
+    ensure_sdk
+    prepare_shims
+    build_libwally
 
-    step "6/6" "Building desktop wallet (.app bundle)..."
+    step "6/6" "Preparing desktop source (${DESKTOP_COMMIT})"
+    checkout_repo "$DESKTOP_REPO" "$desktop_dir" "$DESKTOP_COMMIT"
+    apply_local_kdf_patch "$desktop_dir"
+    ok "Desktop source at $(cd "$desktop_dir" && git rev-parse --short HEAD)"
 
-    cd "$dtop_dir"
+    info "Using SDK: $SDK_PATH_RESOLVED"
+    info "Using Qt CMake path: $QT_INSTALL_CMAKE_PATH_RESOLVED"
+    info "Using vcpkg triplet: $VCPKG_TRIPLET"
 
-    # ── KDF ──────────────────────────────────────
-    info "Setting up KDF..."
-    if [ ! -f "${OUTPUT_DIR}/kdf" ]; then
-        fail "KDF binary not found at ${OUTPUT_DIR}/kdf — run: ./build kdf"
-        return 1
-    fi
-    mkdir -p assets/tools/kdf
-    cp "${OUTPUT_DIR}/kdf" assets/tools/kdf/kdf
-    sed -i '' '/FetchContent_Declare(kdf/,+1d' CMakeLists.txt 2>/dev/null || true
-    sed -i '' 's/FetchContent_MakeAvailable(kdf /FetchContent_MakeAvailable(/' CMakeLists.txt 2>/dev/null || true
-    sed -i '' '/configure_file(\${kdf_SOURCE_DIR}/d' CMakeLists.txt 2>/dev/null || true
+    export QT_INSTALL_CMAKE_PATH="$QT_INSTALL_CMAKE_PATH_RESOLVED"
+    export QT_ROOT="$QT_ROOT_RESOLVED"
+    export MACOSX_DEPLOYMENT_TARGET=11.3
+    export CC=clang
+    export CXX=clang++
+    export CMAKE_BUILD_TYPE=Release
+    export VCPKG_BUILD_TYPE=release
+    export VCPKG_ROOT="${desktop_dir}/ci_tools_atomic_dex/vcpkg-repo"
+    export VCPKG_DEFAULT_BINARY_CACHE="${BUILD_ROOT}/vcpkg-cache"
+    export CMAKE_INCLUDE_PATH="${LOCAL_PREFIX}/include"
+    export CMAKE_LIBRARY_PATH="${LOCAL_PREFIX}/lib"
+    export LIBRARY_PATH="${LOCAL_PREFIX}/lib${LIBRARY_PATH:+:$LIBRARY_PATH}"
+    export CPATH="${LOCAL_PREFIX}/include${CPATH:+:$CPATH}"
+    export PKG_CONFIG_PATH="${LOCAL_PREFIX}/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
+    export SDKROOT="$SDK_PATH_RESOLVED"
 
-    # ── libwally ───────────────────────────────────────────
-    if [ ! -f /usr/local/lib/libwallycore.a ] && [ ! -f /opt/homebrew/lib/libwallycore.a ]; then
-        info "Building libwally-core..."
-        rm -rf /tmp/libwally-core
-        git clone https://github.com/ElementsProject/libwally-core \
-            --recurse-submodules -b release_0.9.2 /tmp/libwally-core
-        cd /tmp/libwally-core
-        export LIBTOOL=glibtool LIBTOOLIZE=glibtoolize
-        ./tools/autogen.sh
-        # Python 3.12+ dropped distutils; setuptools provides it
-        brew install python-setuptools 2>/dev/null || true
-        ./configure --disable-shared --disable-tests --prefix="$(brew --prefix)" LIBTOOL=glibtool
-        make -j"$BUILD_CPUS" install
-        cd "$dtop_dir"
-        ok "libwally installed"
+    if [ ! -x "${VCPKG_ROOT}/vcpkg" ]; then
+        step "6a" "Bootstrapping vcpkg"
+        (
+            cd "$desktop_dir/ci_tools_atomic_dex/vcpkg-repo"
+            ./bootstrap-vcpkg.sh
+        )
     fi
 
-    # ── vcpkg ──────────────────────────────────────────────
-    info "Setting up vcpkg..."
-    if [ ! -d ci_tools_atomic_dex/vcpkg-repo/vcpkg ]; then
-        cd ci_tools_atomic_dex/vcpkg-repo
-        ./bootstrap-vcpkg.sh
-        cd "$dtop_dir"
-    fi
-    export VCPKG_ROOT="${dtop_dir}/ci_tools_atomic_dex/vcpkg-repo"
-    # Restore vcpkg.json (prior runs may have stripped boost), then remove cpprestsdk only
-    git checkout vcpkg.json 2>/dev/null || true
-    sed -i '' '/"cpprestsdk"/d' vcpkg.json 2>/dev/null || true
+    step "6b" "Installing vcpkg dependencies"
+    (
+        cd "$desktop_dir"
+        git checkout -- vcpkg.json
+        "${VCPKG_ROOT}/vcpkg" install --triplet "$VCPKG_TRIPLET"
+    )
 
-    info "Installing vcpkg packages (boost will build from source — this takes a while)..."
-    "${VCPKG_ROOT}/vcpkg" install --triplet arm64-osx 2>&1 | sed 's/^/  /'
-
-    # ── Build ──────────────────────────────────────────────
-    unset SOURCE_DATE_EPOCH
-    mkdir -p ci_tools_atomic_dex/build-Release
-    cd ci_tools_atomic_dex/build-Release
-
-    cmake -GNinja \
+    step "6c" "Configuring desktop build"
+    rm -rf "$build_dir"
+    cmake -S "$desktop_dir" -B "$build_dir" -G Ninja \
         -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_OSX_DEPLOYMENT_TARGET=12.0 \
-        -DCMAKE_TOOLCHAIN_FILE="${VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake" \
-        -DCMAKE_PREFIX_PATH="$(brew --prefix qt@5 2>/dev/null || echo /usr/local/opt/qt@5)" \
-        ../../ 2>&1 | sed 's/^/  /'
+        -DCMAKE_OSX_SYSROOT="$SDK_PATH_RESOLVED" \
+        -DCMAKE_OSX_DEPLOYMENT_TARGET=11.3 \
+        -DCMAKE_PREFIX_PATH="$QT_INSTALL_CMAKE_PATH_RESOLVED" \
+        -DCMAKE_INCLUDE_PATH="${LOCAL_PREFIX}/include" \
+        -DCMAKE_LIBRARY_PATH="${LOCAL_PREFIX}/lib"
 
-    cmake --build . --config Release -j"$BUILD_CPUS" 2>&1 | sed 's/^/  /'
+    step "6d" "Building desktop app"
+    cmake --build "$build_dir" --config Release -j "$BUILD_CPUS"
 
-    # macOS app bundle is created by cmake install
-    local app_bundle
-    app_bundle=$(find . -name "*.app" -maxdepth 3 2>/dev/null | head -1)
-
-    if [ -n "$app_bundle" ]; then
-        cp -R "$app_bundle" "${OUTPUT_DIR}/"
-        ok ".app bundle → ${OUTPUT_DIR}/"
+    step "6e" "Installing / packaging desktop app"
+    if cmake --install "$build_dir"; then
+        ok "Desktop install/package step completed"
     else
-        warn "No .app bundle found — may need manual packaging"
+        warn "Desktop install/package step failed — will still collect any built .app bundle"
     fi
 
-    cd "$SCRIPT_DIR"
-}
+    dmg_found="$(find "$desktop_dir/bundled/osx" -maxdepth 1 -name '*.dmg' 2>/dev/null | head -1 || true)"
+    app_found="$(find "$build_dir" -maxdepth 4 -name '*.app' 2>/dev/null | head -1 || true)"
 
-# ═══════════════════════════════════════════════════════════════
-# Main
-# ═══════════════════════════════════════════════════════════════
+    if [ -n "$app_found" ]; then
+        rm -rf "$OUTPUT_DIR/$(basename "$app_found")"
+        cp -R "$app_found" "$OUTPUT_DIR/"
+        ok "App bundle → $OUTPUT_DIR/$(basename "$app_found")"
+    fi
+
+    if [ -n "$dmg_found" ]; then
+        cp "$dmg_found" "$OUTPUT_DIR/"
+        ok "DMG → $OUTPUT_DIR/$(basename "$dmg_found")"
+    fi
+
+    if [ -z "$app_found" ] && [ -z "$dmg_found" ]; then
+        die "Desktop build completed without producing a .app or .dmg artifact"
+    fi
+}
 
 main() {
     echo ""
     echo -e "${C_BOLD}╔══════════════════════════════════════════════════════════╗${C_RESET}"
-    echo -e "${C_BOLD}║  Native macOS Build${C_RESET}"
+    echo -e "${C_BOLD}║  Native macOS Build                                     ║${C_RESET}"
     echo -e "${C_BOLD}╚══════════════════════════════════════════════════════════╝${C_RESET}"
     echo ""
-    echo "  CPUs: ${BUILD_CPUS}  |  KDF: ${KDF_COMMIT}  |  Desktop: ${DESKTOP_COMMIT}"
-    echo ""
 
-    step "1/6" "Detecting platform..."
-    detect_platform
+    host_setup
 
-    step "2/6" "Checking dependencies..."
-    check_all_deps; local missing=$?
-    if [ "$missing" -eq 0 ]; then
-        echo ""
-    else
+    step "1/6" "Checking platform"
+    check_all_deps
+
+    if [ "${#MISSING_NOTES[@]}" -gt 0 ] || [ "${#MISSING_BREW_PACKAGES[@]}" -gt 0 ]; then
+        install_missing_deps
+        MISSING_BREW_PACKAGES=()
+        MISSING_NOTES=()
+        HAVE_BREW=true
+        step "2/6" "Re-checking dependencies"
+        check_all_deps
+        if [ "${#MISSING_NOTES[@]}" -gt 0 ] || [ "${#MISSING_BREW_PACKAGES[@]}" -gt 0 ]; then
+            print_missing_summary
+            die "Dependencies are still missing"
+        fi
         if $FLAG_INSTALL_DEPS_ONLY; then
-            install_missing_deps "$missing"
             echo ""
-            echo -e "${C_GREEN}Dependencies installed. Ready to build.${C_RESET}"
+            ok "Dependencies installed. Re-run the build."
             exit 0
         fi
-        install_missing_deps "$missing" || exit 1
     fi
 
     if $FLAG_INSTALL_DEPS_ONLY; then
         echo ""
-        echo -e "${C_GREEN}Dependencies are already installed. Nothing to do.${C_RESET}"
+        ok "Dependencies already satisfied. Nothing to do."
         exit 0
     fi
 
+    read_sources
+    echo ""
+    echo "  CPUs: ${BUILD_CPUS}  |  host: ${HOST_ARCH}  |  KDF: ${KDF_COMMIT}  |  Desktop: ${DESKTOP_COMMIT}"
+    echo ""
+
     if $FLAG_DRY_RUN; then
         echo ""
-        echo -e "${C_GREEN}[DRY RUN] Would build:${C_RESET}"
-        $FLAG_KDF_ONLY && echo "  → KDF universal binary"
-        $FLAG_DESKTOP_ONLY && echo "  → Desktop .app bundle"
-        ! $FLAG_KDF_ONLY && ! $FLAG_DESKTOP_ONLY && echo "  → KDF universal + Desktop .app"
-        echo ""
+        echo -e "${C_GREEN}[DRY RUN] Ready.${C_RESET}"
+        $FLAG_KDF_ONLY && echo "  → would build KDF only"
+        $FLAG_DESKTOP_ONLY && echo "  → would build desktop only"
+        ! $FLAG_KDF_ONLY && ! $FLAG_DESKTOP_ONLY && echo "  → would build KDF + desktop"
         exit 0
     fi
 
@@ -564,14 +686,7 @@ main() {
     echo -e "${C_BOLD}${C_GREEN}╚══════════════════════════════════════════════════════════╝${C_RESET}"
     echo ""
     echo "  Output: ${OUTPUT_DIR}/"
-    ls -lh "${OUTPUT_DIR}/" 2>/dev/null || echo "  (empty)"
-    echo ""
-    echo "  To sign for distribution (optional):"
-    echo "    codesign --deep --force --verify --verbose \\"
-    echo "      --sign 'Developer ID Application: Your Name (TEAMID)' \\"
-    echo "      ${OUTPUT_DIR}/*.app"
-    echo "    xcrun notarytool submit ${OUTPUT_DIR}/*.dmg \\"
-    echo "      --apple-id your@email.com --team-id TEAMID --wait"
+    ls -lh "$OUTPUT_DIR" 2>/dev/null || true
     echo ""
 }
 

@@ -1,18 +1,21 @@
 #!/bin/bash
 # build — Sovereign DEX build
 #
-#   ./build                  everything, Docker if available, auto-detect platform
-#   ./build kdf              KDF engine only
-#   ./build desktop          desktop AppImage only (needs KDF from prior run)
-#   ./build wasm             KDF → WebAssembly
-#   ./build native           force native build (bare metal, needs QT5 ~3GB)
-#   ./build native kdf       native KDF only
-#   ./build native desktop   native desktop only
-#   ./build clean            remove .build/, output/, and BuildKit cache
-#   ./build clean --all      also clear Docker BuildKit cache
+#   ./build                         everything, Docker if available, auto-detect platform
+#   ./build kdf                     KDF engine only
+#   ./build desktop                 desktop artifact only (needs KDF from prior run)
+#   ./build wasm                    KDF → WebAssembly
+#   ./build native                  force native build
+#   ./build native kdf              native KDF only
+#   ./build native desktop          native desktop only
+#   ./build --dry-run               native dry-run (forces native path)
+#   ./build --install-deps          native dependency install only (forces native path)
+#   ./build native desktop --dry-run
+#   ./build clean                   remove .build/, output/, and logs/
+#   ./build clean --all             also clear Docker BuildKit cache
 #
 # Docker path uses the multi-stage Dockerfile with cache mounts.
-# Native path uses src/build-linux.sh with full dep detection.
+# Native path forwards native flags to the platform build script.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -28,37 +31,83 @@ case "$(uname -s)" in
 esac
 
 # ── Parse args ───────────────────────────────────────────────
-MODE="auto"      # auto | docker | native
+MODE="auto"      # auto | docker | native | clean
 TARGET="all"     # all | kdf | desktop | wasm | clean
+NATIVE_FLAGS=()
+FORCE_NATIVE=false
+CLEAN_ALL=false
 
-case "${1:-}" in
-    native)
-        MODE="native"
-        TARGET="${2:-all}"
-        ;;
-    clean)
-        MODE="clean"
-        TARGET="clean"
-        ;;
-    kdf|desktop|wasm)
-        MODE="auto"
-        TARGET="$1"
-        ;;
-    ""|all|auto)
-        MODE="auto"
-        TARGET="all"
-        ;;
-    *)
-        echo "Usage: ./build [native|clean] [kdf|desktop|wasm]"
-        echo "       ./build                    everything, auto-detect"
-        echo "       ./build kdf                KDF only"
-        echo "       ./build desktop            desktop only"
-        echo "       ./build wasm               KDF → WebAssembly"
-        echo "       ./build native             force native build"
-        echo "       ./build clean              remove build artifacts"
-        exit 1
-        ;;
-esac
+usage() {
+    echo "Usage: ./build [native|docker|clean] [all|kdf|desktop|wasm] [flags]"
+    echo "       ./build                         everything, auto-detect"
+    echo "       ./build kdf                     KDF only"
+    echo "       ./build desktop                 desktop only"
+    echo "       ./build wasm                    KDF → WebAssembly"
+    echo "       ./build native                  force native build"
+    echo "       ./build --dry-run               native dry-run"
+    echo "       ./build --install-deps          native dep install"
+    echo "       ./build clean [--all]           remove build artifacts"
+}
+
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        native|docker|auto)
+            MODE="$1"
+            ;;
+        clean)
+            MODE="clean"
+            TARGET="clean"
+            ;;
+        all|kdf|desktop|wasm)
+            TARGET="$1"
+            ;;
+        --kdf-only)
+            TARGET="kdf"
+            FORCE_NATIVE=true
+            ;;
+        --desktop-only)
+            TARGET="desktop"
+            FORCE_NATIVE=true
+            ;;
+        --yes|-y|--dry-run|--install-deps)
+            NATIVE_FLAGS+=("$1")
+            FORCE_NATIVE=true
+            ;;
+        --all)
+            CLEAN_ALL=true
+            ;;
+        --help|-h)
+            usage
+            exit 0
+            ;;
+        *)
+            usage
+            echo ""
+            echo "Unknown argument: $1"
+            exit 1
+            ;;
+    esac
+    shift
+done
+
+if [ "$MODE" = "clean" ] && [ "$TARGET" != "clean" ]; then
+    echo "ERROR: clean mode does not take a build target"
+    exit 1
+fi
+
+if $FORCE_NATIVE && [ "$MODE" = "auto" ]; then
+    MODE="native"
+fi
+
+if [ "$TARGET" = "wasm" ] && [ "$MODE" = "native" ]; then
+    echo "ERROR: wasm target is Docker-only"
+    exit 1
+fi
+
+if [ "$MODE" = "docker" ] && [ "${#NATIVE_FLAGS[@]}" -gt 0 ]; then
+    echo "ERROR: --yes, --dry-run, and --install-deps are native-only flags"
+    exit 1
+fi
 
 # ── Clean target ─────────────────────────────────────────────
 if [ "$MODE" = "clean" ]; then
@@ -69,7 +118,7 @@ if [ "$MODE" = "clean" ]; then
     rm -rf output
     echo "Removing logs/ ..."
     rm -rf logs
-    if [ "${2:-}" = "--all" ]; then
+    if $CLEAN_ALL; then
         echo "Clearing Docker BuildKit cache ..."
         docker buildx prune -f 2>/dev/null || true
     fi
@@ -79,7 +128,7 @@ fi
 
 # ── Auto-detect Docker ───────────────────────────────────────
 if [ "$MODE" = "auto" ]; then
-    if docker version &>/dev/null; then
+    if docker version &>/dev/null && ! $FORCE_NATIVE; then
         MODE="docker"
     elif [ -f "src/build-${PLATFORM}.sh" ]; then
         MODE="native"
@@ -178,14 +227,19 @@ if [ "$MODE" = "native" ]; then
         exit 1
     fi
 
+    FLAGS=("--yes")
     case "$TARGET" in
-        all)     FLAGS="--yes" ;;
-        kdf)     FLAGS="--yes --kdf-only" ;;
-        desktop) FLAGS="--yes --desktop-only" ;;
-        *)       echo "Unknown target: $TARGET"; exit 1 ;;
+        all)     ;;
+        kdf)     FLAGS+=("--kdf-only") ;;
+        desktop) FLAGS+=("--desktop-only") ;;
+        *)       echo "Unknown target for native build: $TARGET"; exit 1 ;;
     esac
 
+    if [ "${#NATIVE_FLAGS[@]}" -gt 0 ]; then
+        FLAGS+=("${NATIVE_FLAGS[@]}")
+    fi
+
     echo ""
-    "$SCRIPT" $FLAGS
+    "$SCRIPT" "${FLAGS[@]}"
     exit $?
 fi

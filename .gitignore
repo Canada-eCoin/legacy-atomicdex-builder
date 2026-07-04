@@ -2,6 +2,7 @@
 output/
 logs/
 .build/
+.reference/
 squashfs-root/
 *.AppImage
 
