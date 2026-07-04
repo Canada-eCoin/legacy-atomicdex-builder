@@ -340,8 +340,8 @@ build_kdf() {
         (cd "$kdf_dir" && git fetch origin && git checkout "$KDF_COMMIT" && git submodule update --init --recursive)
     else
         rm -rf "$kdf_dir"
-        git clone --depth 1 "$KDF_REPO" "$kdf_dir"
-        (cd "$kdf_dir" && git fetch --depth 1 origin "$KDF_COMMIT" && git checkout "$KDF_COMMIT" && git submodule update --init --recursive)
+        git clone "$KDF_REPO" "$kdf_dir"
+        (cd "$kdf_dir" && git checkout "$KDF_COMMIT" && git submodule update --init --recursive)
     fi
     ok "KDF source at $(cd "$kdf_dir" && git rev-parse --short HEAD)"
 
@@ -403,8 +403,8 @@ build_desktop() {
         (cd "$dtop_dir" && git fetch origin && git checkout "$DESKTOP_COMMIT" && git submodule update --init --recursive)
     else
         rm -rf "$dtop_dir"
-        git clone --depth 1 "$DESKTOP_REPO" "$dtop_dir"
-        (cd "$dtop_dir" && git fetch --depth 1 origin "$DESKTOP_COMMIT" && git checkout "$DESKTOP_COMMIT" && git submodule update --init --recursive)
+        git clone "$DESKTOP_REPO" "$dtop_dir"
+        (cd "$dtop_dir" && git checkout "$DESKTOP_COMMIT" && git submodule update --init --recursive)
     fi
     ok "Desktop source at $(cd "$dtop_dir" && git rev-parse --short HEAD)"
 
@@ -425,7 +425,7 @@ build_desktop() {
     # ── libwally ───────────────────────────────────────────
     if [ ! -f /usr/local/lib/libwallycore.a ] && [ ! -f /opt/homebrew/lib/libwallycore.a ]; then
         info "Building libwally-core..."
-        git clone --depth 1 https://github.com/ElementsProject/libwally-core \
+        git clone https://github.com/ElementsProject/libwally-core \
             --recurse-submodules -b release_0.9.2 /tmp/libwally-core 2>/dev/null || true
         cd /tmp/libwally-core
         ./tools/autogen.sh

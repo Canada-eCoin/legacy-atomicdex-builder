@@ -33,9 +33,8 @@ RUN apt-get update && apt-get install -y \
 COPY config/sources.json /tmp/cfg/
 RUN KDF_REPO=$(jq -r '.kdf.repo' /tmp/cfg/sources.json) && \
     KDF_COMMIT=$(jq -r '.kdf.commit' /tmp/cfg/sources.json) && \
-    git clone --depth 1 "$KDF_REPO" /tmp/kdf-src && \
+    git clone "$KDF_REPO" /tmp/kdf-src && \
     cd /tmp/kdf-src && \
-    git fetch --depth 1 origin "$KDF_COMMIT" && \
     git checkout "$KDF_COMMIT" && \
     git submodule update --init --recursive
 
@@ -103,14 +102,13 @@ RUN apt-get update && apt-get install -y \
 COPY config/sources.json /tmp/cfg/
 RUN DESKTOP_REPO=$(jq -r '.desktop.repo' /tmp/cfg/sources.json) && \
     DESKTOP_COMMIT=$(jq -r '.desktop.commit' /tmp/cfg/sources.json) && \
-    git clone --depth 1 "$DESKTOP_REPO" /tmp/desktop-src && \
+    git clone "$DESKTOP_REPO" /tmp/desktop-src && \
     cd /tmp/desktop-src && \
-    git fetch --depth 1 origin "$DESKTOP_COMMIT" && \
     git checkout "$DESKTOP_COMMIT" && \
     git submodule update --init --recursive
 
 # Build libwally — only rebuilds when Dockerfile changes
-RUN git clone --depth 1 https://github.com/ElementsProject/libwally-core \
+RUN git clone https://github.com/ElementsProject/libwally-core \
         --recurse-submodules -b release_0.9.2 /tmp/libwally-core && \
     cd /tmp/libwally-core && \
     ./tools/autogen.sh && \
