@@ -416,10 +416,12 @@ build_desktop() {
 
     # ── KDF ──────────────────────────────────────
     info "Setting up KDF..."
-    cp "${OUTPUT_DIR}/kdf" assets/tools/kdf/kdf 2>/dev/null || {
-        fail "KDF binary not found at ${OUTPUT_DIR}/kdf — build KDF first with --kdf-only"
+    if [ ! -f "${OUTPUT_DIR}/kdf" ]; then
+        fail "KDF binary not found at ${OUTPUT_DIR}/kdf — run: ./build kdf"
         return 1
-    }
+    fi
+    mkdir -p assets/tools/kdf
+    cp "${OUTPUT_DIR}/kdf" assets/tools/kdf/kdf
     sed -i '' '/FetchContent_Declare(kdf/,+1d' CMakeLists.txt 2>/dev/null || true
     sed -i '' 's/FetchContent_MakeAvailable(kdf /FetchContent_MakeAvailable(/' CMakeLists.txt 2>/dev/null || true
     sed -i '' '/configure_file(\${kdf_SOURCE_DIR}/d' CMakeLists.txt 2>/dev/null || true
