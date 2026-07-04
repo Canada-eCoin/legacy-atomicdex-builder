@@ -33,7 +33,7 @@ RUN apt-get update && apt-get install -y \
 COPY config/sources.json /tmp/cfg/
 RUN KDF_REPO=$(jq -r '.kdf.repo' /tmp/cfg/sources.json) && \
     KDF_COMMIT=$(jq -r '.kdf.commit' /tmp/cfg/sources.json) && \
-    git clone --filter=blob:none "$KDF_REPO" /tmp/kdf-src && \
+    git clone "$KDF_REPO" /tmp/kdf-src && \
     cd /tmp/kdf-src && \
     git checkout "$KDF_COMMIT" && \
     git submodule update --init --recursive
@@ -102,7 +102,7 @@ RUN apt-get update && apt-get install -y \
 COPY config/sources.json /tmp/cfg/
 RUN DESKTOP_REPO=$(jq -r '.desktop.repo' /tmp/cfg/sources.json) && \
     DESKTOP_COMMIT=$(jq -r '.desktop.commit' /tmp/cfg/sources.json) && \
-    git clone --filter=blob:none "$DESKTOP_REPO" /tmp/desktop-src && \
+    git clone "$DESKTOP_REPO" /tmp/desktop-src && \
     cd /tmp/desktop-src && \
     git checkout "$DESKTOP_COMMIT" && \
     git submodule update --init --recursive
