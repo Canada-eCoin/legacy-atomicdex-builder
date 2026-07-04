@@ -484,16 +484,17 @@ main() {
     detect_platform
 
     step "2/6" "Checking dependencies..."
-    if check_all_deps; then
+    check_all_deps; local missing=$?
+    if [ "$missing" -eq 0 ]; then
         echo ""
     else
         if $FLAG_INSTALL_DEPS_ONLY; then
-            install_missing_deps $?
+            install_missing_deps "$missing"
             echo ""
             echo -e "${C_GREEN}Dependencies installed. Ready to build.${C_RESET}"
             exit 0
         fi
-        install_missing_deps $? || exit 1
+        install_missing_deps "$missing" || exit 1
     fi
 
     if $FLAG_INSTALL_DEPS_ONLY; then
