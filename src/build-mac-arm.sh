@@ -572,7 +572,7 @@ replace_once(
 replace_once(
     desktop_dir / 'src/app/main.prerequisites.hpp',
     '#include <QtWebEngine>\n',
-    '',
+    '#include <QQuickWindow>\n',
 )
 replace_once(
     desktop_dir / 'src/app/main.prerequisites.hpp',
