@@ -100,7 +100,7 @@ BUILD_ARCH=""
 BUILD_RUST_TARGET=""
 BUILD_VCPKG_TRIPLET=""
 BUILD_CMAKE_OSX_ARCH=""
-QT_VERSION="5.15.2"
+QT_VERSION="${QT_VERSION:-qt5-homebrew}"
 
 append_unique() {
     local value="$1"
@@ -177,44 +177,43 @@ check_python() {
 qt_cmake_dir_is_complete() {
     local cmake_dir="$1"
     [ -f "$cmake_dir/Qt5/Qt5Config.cmake" ] || return 1
+    [ -f "$cmake_dir/Qt5Core/Qt5CoreConfig.cmake" ] || return 1
+    [ -f "$cmake_dir/Qt5Quick/Qt5QuickConfig.cmake" ] || return 1
+    [ -f "$cmake_dir/Qt5Svg/Qt5SvgConfig.cmake" ] || return 1
     [ -f "$cmake_dir/Qt5Charts/Qt5ChartsConfig.cmake" ] || return 1
-    [ -f "$cmake_dir/Qt5WebEngine/Qt5WebEngineConfig.cmake" ] || return 1
-    [ -f "$cmake_dir/Qt5WebEngineCore/Qt5WebEngineCoreConfig.cmake" ] || return 1
-    [ -f "$cmake_dir/Qt5WebEngineWidgets/Qt5WebEngineWidgetsConfig.cmake" ] || return 1
+    [ -f "$cmake_dir/Qt5Widgets/Qt5WidgetsConfig.cmake" ] || return 1
     return 0
 }
 
-qt_aqt_root() {
-    echo "${BUILD_ROOT}/Qt/${QT_VERSION}"
+qt_homebrew_prefix() {
+    command -v brew >/dev/null 2>&1 || return 1
+    brew --prefix qt@5 2>/dev/null || return 1
 }
 
-qt_aqt_cmake_dir() {
-    echo "$(qt_aqt_root)/clang_64/lib/cmake"
+refresh_qt_version_from_prefix() {
+    local qt_prefix="$1"
+    if [ -x "$qt_prefix/bin/qmake" ]; then
+        QT_VERSION="$("$qt_prefix/bin/qmake" -query QT_VERSION 2>/dev/null || echo "$QT_VERSION")"
+    fi
 }
 
 check_qt() {
     if [ -n "${QT_INSTALL_CMAKE_PATH:-}" ] && qt_cmake_dir_is_complete "$QT_INSTALL_CMAKE_PATH"; then
-        ok "Qt ${QT_VERSION} + WebEngine — from QT_INSTALL_CMAKE_PATH"
-        return 0
-    fi
-
-    local aqt_cmake
-    aqt_cmake="$(qt_aqt_cmake_dir)"
-    if qt_cmake_dir_is_complete "$aqt_cmake"; then
-        ok "Qt ${QT_VERSION} + WebEngine — cached local AQT install"
+        ok "Qt5 desktop modules — from QT_INSTALL_CMAKE_PATH"
         return 0
     fi
 
     if command -v brew >/dev/null 2>&1; then
         local qt_prefix
-        qt_prefix="$(brew --prefix qt@5 2>/dev/null || true)"
+        qt_prefix="$(qt_homebrew_prefix || true)"
         if [ -n "$qt_prefix" ] && qt_cmake_dir_is_complete "$qt_prefix/lib/cmake" && [ -x "$qt_prefix/bin/macdeployqt" ]; then
-            ok "qt@5 — Homebrew Qt5 with WebEngine"
+            refresh_qt_version_from_prefix "$qt_prefix"
+            ok "qt@5 — Homebrew Qt ${QT_VERSION} with macdeployqt"
             return 0
         fi
     fi
 
-    warn "Qt ${QT_VERSION} + QtWebEngine not found locally — native arm64 builds need a local arm64 Qt install via QT_INSTALL_CMAKE_PATH/QT_ROOT"
+    warn "Qt5 desktop modules not found locally — install/provide an arm64 Qt5 tree with Core, Quick, Svg, Charts, Widgets, and macdeployqt"
     return 0
 }
 
@@ -365,62 +364,42 @@ resolve_python() {
 }
 
 set_build_arch_for_qt() {
-    local source_kind="$1"
-
-    if [ "$source_kind" = "aqt-clang_64" ]; then
-        die "Qt ${QT_VERSION} clang_64 is Intel-only. For native arm64 macOS, provide an arm64 Qt install via QT_INSTALL_CMAKE_PATH and QT_ROOT, or use build-mac-intel.sh for the Intel path."
-    fi
+    return 0
 }
 
 install_qt_via_aqt() {
-    die "Automatic Qt install is only wired for the Intel clang_64 kit. For native arm64 macOS, install an arm64 Qt ${QT_VERSION} + QtWebEngine locally and set QT_INSTALL_CMAKE_PATH and QT_ROOT."
+    die "Automatic Qt install is disabled for native arm64 macOS. Use Homebrew qt@5 or set QT_INSTALL_CMAKE_PATH/QT_ROOT to a native Qt5 install."
 }
 
 resolve_qt() {
     local qt_prefix=""
     local qt_macdeploy=""
-    local aqt_root=""
-    local aqt_cmake=""
 
     if [ -n "${QT_INSTALL_CMAKE_PATH:-}" ] && qt_cmake_dir_is_complete "$QT_INSTALL_CMAKE_PATH"; then
         QT_INSTALL_CMAKE_PATH_RESOLVED="$QT_INSTALL_CMAKE_PATH"
-        if [ -n "${QT_ROOT:-}" ] && [ -x "${QT_ROOT}/clang_64/bin/macdeployqt" ]; then
-            QT_ROOT_RESOLVED="$QT_ROOT"
-            case "$QT_INSTALL_CMAKE_PATH" in
-                */clang_64/*) set_build_arch_for_qt "aqt-clang_64" ;;
-            esac
-            return
-        fi
         qt_prefix="$(cd "${QT_INSTALL_CMAKE_PATH}/../.." && pwd)"
         qt_macdeploy="$qt_prefix/bin/macdeployqt"
         [ -x "$qt_macdeploy" ] || die "QT_INSTALL_CMAKE_PATH is set, but macdeployqt was not found next to it"
-        QT_ROOT_RESOLVED="$(dirname "$qt_prefix")"
-        case "$QT_INSTALL_CMAKE_PATH" in
-            */clang_64/*) set_build_arch_for_qt "aqt-clang_64" ;;
-        esac
+        refresh_qt_version_from_prefix "$qt_prefix"
+        QT_ROOT_RESOLVED="${BUILD_ROOT}/Qt/${QT_VERSION}"
+        mkdir -p "${QT_ROOT_RESOLVED}/clang_64/bin" "${BUILD_ROOT}/Qt/Tools/QtInstallerFramework"
+        ln -sf "$qt_macdeploy" "${QT_ROOT_RESOLVED}/clang_64/bin/macdeployqt"
+        ok "Using Qt ${QT_VERSION} from QT_INSTALL_CMAKE_PATH"
         return
     fi
 
-    aqt_root="$(qt_aqt_root)"
-    aqt_cmake="$(qt_aqt_cmake_dir)"
-    if ! qt_cmake_dir_is_complete "$aqt_cmake"; then
-        if command -v brew >/dev/null 2>&1; then
-            qt_prefix="$(brew --prefix qt@5 2>/dev/null || true)"
-            if [ -n "$qt_prefix" ] && qt_cmake_dir_is_complete "$qt_prefix/lib/cmake" && [ -x "$qt_prefix/bin/macdeployqt" ]; then
-                QT_INSTALL_CMAKE_PATH_RESOLVED="$qt_prefix/lib/cmake"
-                QT_ROOT_RESOLVED="${BUILD_ROOT}/Qt/${QT_VERSION}"
-                mkdir -p "${QT_ROOT_RESOLVED}/clang_64/bin" "${BUILD_ROOT}/Qt/Tools/QtInstallerFramework"
-                ln -sf "$qt_prefix/bin/macdeployqt" "${QT_ROOT_RESOLVED}/clang_64/bin/macdeployqt"
-                return
-            fi
-        fi
-        install_qt_via_aqt
+    qt_prefix="$(qt_homebrew_prefix || true)"
+    if [ -n "$qt_prefix" ] && qt_cmake_dir_is_complete "$qt_prefix/lib/cmake" && [ -x "$qt_prefix/bin/macdeployqt" ]; then
+        refresh_qt_version_from_prefix "$qt_prefix"
+        QT_INSTALL_CMAKE_PATH_RESOLVED="$qt_prefix/lib/cmake"
+        QT_ROOT_RESOLVED="${BUILD_ROOT}/Qt/${QT_VERSION}"
+        mkdir -p "${QT_ROOT_RESOLVED}/clang_64/bin" "${BUILD_ROOT}/Qt/Tools/QtInstallerFramework"
+        ln -sf "$qt_prefix/bin/macdeployqt" "${QT_ROOT_RESOLVED}/clang_64/bin/macdeployqt"
+        ok "Using Homebrew Qt ${QT_VERSION} → $qt_prefix"
+        return
     fi
 
-    QT_INSTALL_CMAKE_PATH_RESOLVED="$aqt_cmake"
-    QT_ROOT_RESOLVED="$aqt_root"
-    [ -x "$QT_ROOT_RESOLVED/clang_64/bin/macdeployqt" ] || die "Qt install is missing macdeployqt"
-    set_build_arch_for_qt "aqt-clang_64"
+    install_qt_via_aqt
 }
 
 ensure_sdk() {
@@ -518,12 +497,13 @@ apply_local_desktop_patches() {
     cp "$OUTPUT_DIR/kdf" "$desktop_dir/assets/tools/kdf/kdf_kwd"
     chmod +x "$desktop_dir/assets/tools/kdf/kdf_kwd" 2>/dev/null || true
 
-    "$PYTHON_BIN" - "$desktop_dir/CMakeLists.txt" "$desktop_dir/ci_tools_atomic_dex/vcpkg-custom-ports/ports/cpprestsdk/portfile.cmake" <<'PY'
+    "$PYTHON_BIN" - "$desktop_dir/CMakeLists.txt" "$desktop_dir/ci_tools_atomic_dex/vcpkg-custom-ports/ports/cpprestsdk/portfile.cmake" "$desktop_dir" <<'PY'
 import sys
 from pathlib import Path
 
 cmake_path = Path(sys.argv[1])
 portfile_path = Path(sys.argv[2])
+desktop_dir = Path(sys.argv[3])
 
 cmake_text = cmake_path.read_text()
 old_block = '''if (APPLE)
@@ -570,6 +550,95 @@ if '-DOPENSSL_ROOT_DIR=${CURRENT_INSTALLED_DIR}' not in port_text:
     port_text = port_text.replace(anchor, anchor + openssl_opt, 1)
 
 portfile_path.write_text(port_text)
+
+def replace_once(path: Path, old: str, new: str):
+    text = path.read_text()
+    if old not in text:
+        raise SystemExit(f'required seam not found in {path}: {old[:80]!r}')
+    path.write_text(text.replace(old, new, 1))
+
+replace_once(
+    desktop_dir / 'cmake/dependencies.cmake',
+    'find_package(Qt5 5.15 COMPONENTS Core Quick LinguistTools Svg Charts WebEngine WebEngineCore WebEngineWidgets Widgets REQUIRED)\n',
+    'find_package(Qt5 5.15 COMPONENTS Core Quick LinguistTools Svg Charts Widgets REQUIRED)\nadd_compile_definitions(ATOMICDEX_DISABLE_WEBENGINE=1)\n',
+)
+
+replace_once(
+    desktop_dir / 'src/CMakeLists.txt',
+    '            cpprestsdk::cpprest Qt::Core Qt::Quick Qt::Svg Qt::Charts Qt::WebEngine Qt::WebEngineCore Qt::WebEngineWidgets\n',
+    '            cpprestsdk::cpprest Qt::Core Qt::Quick Qt::Svg Qt::Charts\n',
+)
+
+replace_once(
+    desktop_dir / 'src/app/main.prerequisites.hpp',
+    '#include <QtWebEngine>\n',
+    '',
+)
+replace_once(
+    desktop_dir / 'src/app/main.prerequisites.hpp',
+    '    QtWebEngine::initialize();\n',
+    '    // QtWebEngine disabled for native arm64 macOS build.\n',
+)
+
+for rel in [
+    'atomic_defi_design/Dex/Portfolio/AssetPieChart.qml',
+    'atomic_defi_design/Dex/Portfolio/Portfolio.qml',
+    'atomic_defi_design/Dex/Wallet/Main.qml',
+]:
+    replace_once(desktop_dir / rel, 'import QtWebEngine 1.10\n', '')
+
+replace_once(
+    desktop_dir / 'atomic_defi_design/Dex/Screens/Dashboard.qml',
+    'import QtWebEngine 1.10\n',
+    '',
+)
+replace_once(
+    desktop_dir / 'atomic_defi_design/Dex/Screens/Dashboard.qml',
+    '    property alias webEngineView: webEngineView\n',
+    '',
+)
+replace_once(
+    desktop_dir / 'atomic_defi_design/Dex/Screens/Dashboard.qml',
+    '''        WebEngineView
+        {
+            id: webEngineView
+            backgroundColor: "transparent"
+            settings.localContentCanAccessRemoteUrls: true
+            settings.errorPageEnabled: false
+            onJavaScriptConsoleMessage: (level, message, lineNumber, sourceID) => {
+                // By not printing or handling this, you "suppress" it within your app logic
+            }
+        }
+''',
+    '',
+)
+
+(desktop_dir / 'atomic_defi_design/Dex/Exchange/ProView/Chart.qml').write_text('''import QtQuick 2.15\nimport QtQuick.Layouts 1.15\nimport "../../Components"\nimport Dex.Themes 1.0 as Dex\n\nItem\n{\n    id: root\n    implicitWidth: 530\n    implicitHeight: 300\n\n    DefaultRectangle\n    {\n        anchors.fill: parent\n        color: "transparent"\n        border.color: Dex.CurrentTheme.lineSeparatorColor\n        radius: 8\n\n        Column\n        {\n            anchors.centerIn: parent\n            spacing: 8\n\n            DexLabel\n            {\n                anchors.horizontalCenter: parent.horizontalCenter\n                text_value: qsTr("Pair chart unavailable in this native arm64 build")\n                color: Dex.CurrentTheme.foregroundColor\n            }\n\n            DexLabel\n            {\n                anchors.horizontalCenter: parent.horizontalCenter\n                text_value: qsTr("QtWebEngine has been disabled for the ARM build path.")\n                color: Dex.CurrentTheme.foregroundColor2\n            }\n        }\n    }\n}\n''')
+
+mac_post = desktop_dir / 'cmake/install/macos/osx_post_install.cmake'
+replace_once(
+    mac_post,
+    '''    message(STATUS "Fixing QTWebengineProcess")
+    set(QTWEBENGINE_BUNDLED_PATH ${PROJECT_APP_PATH}/Contents/Frameworks/QtWebEngineCore.framework/Helpers/QtWebEngineProcess.app/Contents/MacOS/QtWebEngineProcess)
+    message(STATUS "Executing: [install_name_tool -add_rpath @executable_path/../../../../../../Frameworks ${QTWEBENGINE_BUNDLED_PATH}]")
+    execute_process(COMMAND install_name_tool -add_rpath "@executable_path/../../../../../../Frameworks" "${QTWEBENGINE_BUNDLED_PATH}"
+            WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+            ECHO_OUTPUT_VARIABLE
+            ECHO_ERROR_VARIABLE)
+''',
+    '''    set(QTWEBENGINE_BUNDLED_PATH ${PROJECT_APP_PATH}/Contents/Frameworks/QtWebEngineCore.framework/Helpers/QtWebEngineProcess.app/Contents/MacOS/QtWebEngineProcess)
+    if (EXISTS ${QTWEBENGINE_BUNDLED_PATH})
+        message(STATUS "Fixing QTWebengineProcess")
+        message(STATUS "Executing: [install_name_tool -add_rpath @executable_path/../../../../../../Frameworks ${QTWEBENGINE_BUNDLED_PATH}]")
+        execute_process(COMMAND install_name_tool -add_rpath "@executable_path/../../../../../../Frameworks" "${QTWEBENGINE_BUNDLED_PATH}"
+                WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+                ECHO_OUTPUT_VARIABLE
+                ECHO_ERROR_VARIABLE)
+    else ()
+        message(STATUS "QtWebEngineProcess not present in this build — skipping RPATH fix")
+    endif ()
+''',
+)
 PY
 }
 
