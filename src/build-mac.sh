@@ -494,6 +494,27 @@ path.write_text(text)
 PY
 }
 
+show_vcpkg_failure_logs() {
+    local root="$1"
+    local log
+    echo ""
+    warn "vcpkg failed. Relevant log tails:"
+    for log in \
+        "$root/buildtrees/cpprestsdk/config-arm64-osx-out.log" \
+        "$root/buildtrees/cpprestsdk/config-arm64-osx-rel-CMakeCache.txt.log" \
+        "$root/buildtrees/cpprestsdk/config-arm64-osx-rel-CMakeConfigureLog.yaml.log" \
+        "$root/buildtrees/cpprestsdk/config-x64-osx-out.log" \
+        "$root/buildtrees/cpprestsdk/config-x64-osx-rel-CMakeCache.txt.log" \
+        "$root/buildtrees/cpprestsdk/config-x64-osx-rel-CMakeConfigureLog.yaml.log"
+    do
+        if [ -f "$log" ]; then
+            echo ""
+            echo "── $(basename "$log") ──"
+            tail -n 80 "$log" || true
+        fi
+    done
+}
+
 build_libwally() {
     local libwally_dir="${BUILD_ROOT}/libwally-core"
 
@@ -579,14 +600,17 @@ build_desktop() {
     fi
 
     step "6b" "Installing vcpkg dependencies"
-    (
+    if ! (
         cd "$desktop_dir"
         git checkout -- vcpkg.json
         "${VCPKG_ROOT}/vcpkg" install \
             --triplet "$VCPKG_TRIPLET" \
             --overlay-ports "$desktop_dir/ci_tools_atomic_dex/vcpkg-custom-ports/ports" \
             --overlay-triplets "$desktop_dir/cmake"
-    )
+    ); then
+        show_vcpkg_failure_logs "$VCPKG_ROOT"
+        die "vcpkg dependency installation failed"
+    fi
 
     step "6c" "Configuring desktop build"
     rm -rf "$build_dir"
