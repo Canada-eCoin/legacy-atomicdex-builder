@@ -546,7 +546,8 @@ build_kdf() {
 apply_local_desktop_patches() {
     local desktop_dir="$1"
     mkdir -p "$desktop_dir/assets/tools/kdf"
-    cp "$OUTPUT_DIR/kdf" "$desktop_dir/assets/tools/kdf/kdf"
+    cp "$OUTPUT_DIR/kdf" "$desktop_dir/assets/tools/kdf/kdf_kwd"
+    chmod +x "$desktop_dir/assets/tools/kdf/kdf_kwd" 2>/dev/null || true
 
     "$PYTHON_BIN" - "$desktop_dir/CMakeLists.txt" "$desktop_dir/ci_tools_atomic_dex/vcpkg-custom-ports/ports/cpprestsdk/portfile.cmake" <<'PY'
 import sys
@@ -571,7 +572,6 @@ new_block = '# Local KDF is staged by build-mac.sh; do not fetch upstream devbui
 old_make_available = 'FetchContent_MakeAvailable(kdf jl777-coins qmaterial)'
 new_make_available = 'FetchContent_MakeAvailable(jl777-coins qmaterial)'
 old_copy = '    configure_file(${kdf_SOURCE_DIR}/kdf ${CMAKE_CURRENT_SOURCE_DIR}/assets/tools/kdf/${DEX_API} COPYONLY)'
-new_copy = '    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/assets/tools/kdf/kdf ${CMAKE_CURRENT_SOURCE_DIR}/assets/tools/kdf/${DEX_API} COPYONLY)'
 if old_block not in cmake_text:
     raise SystemExit('kdf FetchContent block not found in CMakeLists.txt')
 if old_make_available not in cmake_text:
@@ -580,7 +580,7 @@ if old_copy not in cmake_text:
     raise SystemExit('local kdf configure_file seam not found in CMakeLists.txt')
 cmake_text = cmake_text.replace(old_block, new_block, 1)
 cmake_text = cmake_text.replace(old_make_available, new_make_available, 1)
-cmake_text = cmake_text.replace(old_copy, new_copy, 1)
+cmake_text = cmake_text.replace(old_copy, '', 1)
 cmake_path.write_text(cmake_text)
 
 port_text = portfile_path.read_text()
@@ -602,6 +602,16 @@ if '-DOPENSSL_ROOT_DIR=${CURRENT_INSTALLED_DIR}' not in port_text:
 
 portfile_path.write_text(port_text)
 PY
+}
+
+stage_kdf_in_app_bundle() {
+    local app_bundle="$1"
+    local target_dir="$app_bundle/Contents/Resources/assets/tools/kdf"
+
+    mkdir -p "$target_dir"
+    cp "$OUTPUT_DIR/kdf" "$target_dir/kdf_kwd"
+    chmod +x "$target_dir/kdf_kwd" 2>/dev/null || true
+    ok "KDF staged into app bundle → $target_dir/kdf_kwd"
 }
 
 show_vcpkg_failure_logs() {
@@ -747,6 +757,7 @@ build_desktop() {
     app_found="$(find "$build_dir" -maxdepth 4 -name '*.app' 2>/dev/null | head -1 || true)"
 
     if [ -n "$app_found" ]; then
+        stage_kdf_in_app_bundle "$app_found"
         rm -rf "$OUTPUT_DIR/$(basename "$app_found")"
         cp -R "$app_found" "$OUTPUT_DIR/"
         ok "App bundle → $OUTPUT_DIR/$(basename "$app_found")"
