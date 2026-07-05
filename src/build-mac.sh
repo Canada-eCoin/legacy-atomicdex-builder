@@ -96,6 +96,7 @@ SDK_PATH_RESOLVED=""
 HOST_ARCH=""
 RUST_TARGET=""
 VCPKG_TRIPLET=""
+QT_VERSION="5.15.2"
 
 append_unique() {
     local value="$1"
@@ -167,24 +168,48 @@ check_python() {
     return 1
 }
 
+qt_cmake_dir_is_complete() {
+    local cmake_dir="$1"
+    [ -f "$cmake_dir/Qt5/Qt5Config.cmake" ] || return 1
+    [ -f "$cmake_dir/Qt5Charts/Qt5ChartsConfig.cmake" ] || return 1
+    [ -f "$cmake_dir/Qt5WebEngine/Qt5WebEngineConfig.cmake" ] || return 1
+    [ -f "$cmake_dir/Qt5WebEngineCore/Qt5WebEngineCoreConfig.cmake" ] || return 1
+    [ -f "$cmake_dir/Qt5WebEngineWidgets/Qt5WebEngineWidgetsConfig.cmake" ] || return 1
+    return 0
+}
+
+qt_aqt_root() {
+    echo "${BUILD_ROOT}/Qt/${QT_VERSION}"
+}
+
+qt_aqt_cmake_dir() {
+    echo "$(qt_aqt_root)/clang_64/lib/cmake"
+}
+
 check_qt() {
-    if [ -n "${QT_INSTALL_CMAKE_PATH:-}" ] && [ -f "${QT_INSTALL_CMAKE_PATH}/Qt5/Qt5Config.cmake" ]; then
-        ok "Qt5 — from QT_INSTALL_CMAKE_PATH"
+    if [ -n "${QT_INSTALL_CMAKE_PATH:-}" ] && qt_cmake_dir_is_complete "$QT_INSTALL_CMAKE_PATH"; then
+        ok "Qt ${QT_VERSION} + WebEngine — from QT_INSTALL_CMAKE_PATH"
+        return 0
+    fi
+
+    local aqt_cmake
+    aqt_cmake="$(qt_aqt_cmake_dir)"
+    if qt_cmake_dir_is_complete "$aqt_cmake"; then
+        ok "Qt ${QT_VERSION} + WebEngine — cached local AQT install"
         return 0
     fi
 
     if command -v brew >/dev/null 2>&1; then
         local qt_prefix
         qt_prefix="$(brew --prefix qt@5 2>/dev/null || true)"
-        if [ -n "$qt_prefix" ] && [ -f "$qt_prefix/lib/cmake/Qt5/Qt5Config.cmake" ] && [ -x "$qt_prefix/bin/macdeployqt" ]; then
-            ok "qt@5 — Homebrew Qt5"
+        if [ -n "$qt_prefix" ] && qt_cmake_dir_is_complete "$qt_prefix/lib/cmake" && [ -x "$qt_prefix/bin/macdeployqt" ]; then
+            ok "qt@5 — Homebrew Qt5 with WebEngine"
             return 0
         fi
     fi
 
-    fail "Qt5 not found"
-    add_missing_formula "qt@5" "desktop build needs Qt 5 + macdeployqt"
-    return 1
+    warn "Qt ${QT_VERSION} + QtWebEngine not found locally — will download via aqtinstall during desktop build"
+    return 0
 }
 
 check_all_deps() {
@@ -333,11 +358,34 @@ resolve_python() {
     die "Could not resolve a usable Python interpreter"
 }
 
+install_qt_via_aqt() {
+    local qt_root_base
+    qt_root_base="${BUILD_ROOT}/Qt"
+
+    if qt_cmake_dir_is_complete "$(qt_aqt_cmake_dir)"; then
+        return 0
+    fi
+
+    if $FLAG_DRY_RUN; then
+        info "[DRY RUN] would install Qt ${QT_VERSION} + qtwebengine via aqtinstall"
+        return 0
+    fi
+
+    resolve_python
+    step "qt" "Installing Qt ${QT_VERSION} + WebEngine via aqtinstall"
+    "$PYTHON_BIN" -m pip install --user aqtinstall==3.1.1
+    "$PYTHON_BIN" -m aqt install-qt mac desktop "$QT_VERSION" clang_64 -O "$qt_root_base" -m qtcharts debug_info qtwebengine
+
+    qt_cmake_dir_is_complete "$(qt_aqt_cmake_dir)" || die "aqtinstall completed, but Qt WebEngine modules are still missing"
+}
+
 resolve_qt() {
     local qt_prefix=""
     local qt_macdeploy=""
+    local aqt_root=""
+    local aqt_cmake=""
 
-    if [ -n "${QT_INSTALL_CMAKE_PATH:-}" ] && [ -f "${QT_INSTALL_CMAKE_PATH}/Qt5/Qt5Config.cmake" ]; then
+    if [ -n "${QT_INSTALL_CMAKE_PATH:-}" ] && qt_cmake_dir_is_complete "$QT_INSTALL_CMAKE_PATH"; then
         QT_INSTALL_CMAKE_PATH_RESOLVED="$QT_INSTALL_CMAKE_PATH"
         if [ -n "${QT_ROOT:-}" ] && [ -x "${QT_ROOT}/clang_64/bin/macdeployqt" ]; then
             QT_ROOT_RESOLVED="$QT_ROOT"
@@ -346,18 +394,29 @@ resolve_qt() {
         qt_prefix="$(cd "${QT_INSTALL_CMAKE_PATH}/../.." && pwd)"
         qt_macdeploy="$qt_prefix/bin/macdeployqt"
         [ -x "$qt_macdeploy" ] || die "QT_INSTALL_CMAKE_PATH is set, but macdeployqt was not found next to it"
-    else
-        qt_prefix="$(brew --prefix qt@5 2>/dev/null || true)"
-        [ -n "$qt_prefix" ] || die "qt@5 not installed"
-        [ -f "$qt_prefix/lib/cmake/Qt5/Qt5Config.cmake" ] || die "Qt5Config.cmake not found in qt@5"
-        qt_macdeploy="$qt_prefix/bin/macdeployqt"
-        [ -x "$qt_macdeploy" ] || die "macdeployqt not found in qt@5"
-        QT_INSTALL_CMAKE_PATH_RESOLVED="$qt_prefix/lib/cmake"
+        QT_ROOT_RESOLVED="$(dirname "$qt_prefix")"
+        return
     fi
 
-    QT_ROOT_RESOLVED="${BUILD_ROOT}/Qt/5.15.2"
-    mkdir -p "${QT_ROOT_RESOLVED}/clang_64/bin" "${BUILD_ROOT}/Qt/Tools/QtInstallerFramework"
-    ln -sf "$qt_macdeploy" "${QT_ROOT_RESOLVED}/clang_64/bin/macdeployqt"
+    aqt_root="$(qt_aqt_root)"
+    aqt_cmake="$(qt_aqt_cmake_dir)"
+    if ! qt_cmake_dir_is_complete "$aqt_cmake"; then
+        if command -v brew >/dev/null 2>&1; then
+            qt_prefix="$(brew --prefix qt@5 2>/dev/null || true)"
+            if [ -n "$qt_prefix" ] && qt_cmake_dir_is_complete "$qt_prefix/lib/cmake" && [ -x "$qt_prefix/bin/macdeployqt" ]; then
+                QT_INSTALL_CMAKE_PATH_RESOLVED="$qt_prefix/lib/cmake"
+                QT_ROOT_RESOLVED="${BUILD_ROOT}/Qt/${QT_VERSION}"
+                mkdir -p "${QT_ROOT_RESOLVED}/clang_64/bin" "${BUILD_ROOT}/Qt/Tools/QtInstallerFramework"
+                ln -sf "$qt_prefix/bin/macdeployqt" "${QT_ROOT_RESOLVED}/clang_64/bin/macdeployqt"
+                return
+            fi
+        fi
+        install_qt_via_aqt
+    fi
+
+    QT_INSTALL_CMAKE_PATH_RESOLVED="$aqt_cmake"
+    QT_ROOT_RESOLVED="$aqt_root"
+    [ -x "$QT_ROOT_RESOLVED/clang_64/bin/macdeployqt" ] || die "Qt install is missing macdeployqt"
 }
 
 ensure_sdk() {
