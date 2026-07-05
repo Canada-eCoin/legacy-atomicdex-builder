@@ -151,13 +151,16 @@ missing dependencies, and asks before installing anything unless `--yes` or
 ### macOS
 
 ```bash
-src/build-mac.sh                    # full build: KDF universal + desktop
-src/build-mac.sh --kdf-only         # KDF universal binary only
+src/build-mac.sh                    # wrapper: host default (Intel on x86_64, arm on arm64)
+src/build-mac.sh --arch intel       # force Intel/x86_64 desktop path
+src/build-mac.sh --arch arm         # force native arm64 desktop path
+src/build-mac-intel.sh              # direct Intel/x86_64 path
+src/build-mac-arm.sh                # direct native arm64 path
 src/build-mac.sh --yes              # skip consent prompts
 src/build-mac.sh --dry-run          # check dependencies and print plan
 ```
 
-Requires Xcode CLI tools. Desktop wallet builds require Qt5 from Homebrew.
+Requires Xcode CLI tools. The Intel path is the currently better-validated macOS build shape; native arm64 remains in progress and may require a local arm64 Qt5 + QtWebEngine install.
 
 ### Windows
 
@@ -309,7 +312,9 @@ atomicdex-legacy-builder/
 │   └── patches/                 optional numbered patch files
 ├── src/
 │   ├── build-linux.sh           native Linux build
-│   ├── build-mac.sh             native macOS build
+│   ├── build-mac.sh             macOS build dispatcher
+│   ├── build-mac-intel.sh       Intel/x86_64 macOS build
+│   ├── build-mac-arm.sh         native arm64 macOS build
 │   ├── build-windows.ps1        native Windows build
 │   ├── _build-lib.sh            shared shell helpers
 │   ├── docker-build.sh          inner Docker build script

@@ -47,6 +47,8 @@ CHANGED_BUILD_FILES=$(git diff --name-only "$BEFORE" "$AFTER" -- \
     src/Dockerfile.kdf-wasm \
     src/build-linux.sh \
     src/build-mac.sh \
+    src/build-mac-intel.sh \
+    src/build-mac-arm.sh \
     src/build-windows.ps1 \
     src/docker-build.sh \
     src/_build-lib.sh \

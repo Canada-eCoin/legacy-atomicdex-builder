@@ -46,6 +46,8 @@ usage() {
     echo "       ./build native                  force native build"
     echo "       ./build --dry-run               native dry-run"
     echo "       ./build --install-deps          native dep install"
+    echo "       ./build --arch intel            native mac Intel/x86_64 path"
+    echo "       ./build --arch arm              native mac arm64 path"
     echo "       ./build clean [--all]           remove build artifacts"
 }
 
@@ -69,9 +71,18 @@ while [ "$#" -gt 0 ]; do
             TARGET="desktop"
             FORCE_NATIVE=true
             ;;
-        --yes|-y|--dry-run|--install-deps)
+        --yes|-y|--dry-run|--install-deps|--intel|--arm|--arch=*)
             NATIVE_FLAGS+=("$1")
             FORCE_NATIVE=true
+            ;;
+        --arch)
+            if [ "$#" -lt 2 ]; then
+                echo "ERROR: --arch requires a value (intel|arm)"
+                exit 1
+            fi
+            NATIVE_FLAGS+=("$1" "$2")
+            FORCE_NATIVE=true
+            shift
             ;;
         --all)
             CLEAN_ALL=true
@@ -105,7 +116,7 @@ if [ "$TARGET" = "wasm" ] && [ "$MODE" = "native" ]; then
 fi
 
 if [ "$MODE" = "docker" ] && [ "${#NATIVE_FLAGS[@]}" -gt 0 ]; then
-    echo "ERROR: --yes, --dry-run, and --install-deps are native-only flags"
+    echo "ERROR: --yes, --dry-run, --install-deps, and mac arch flags are native-only flags"
     exit 1
 fi
 
