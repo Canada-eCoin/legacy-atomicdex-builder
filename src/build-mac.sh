@@ -449,18 +449,19 @@ build_kdf() {
     ok "SHA256: $(cat "$OUTPUT_DIR/kdf.sha256")"
 }
 
-apply_local_kdf_patch() {
+apply_local_desktop_patches() {
     local desktop_dir="$1"
     mkdir -p "$desktop_dir/assets/tools/kdf"
     cp "$OUTPUT_DIR/kdf" "$desktop_dir/assets/tools/kdf/kdf"
 
-    "$PYTHON_BIN" - "$desktop_dir/CMakeLists.txt" <<'PY'
+    "$PYTHON_BIN" - "$desktop_dir/CMakeLists.txt" "$desktop_dir/ci_tools_atomic_dex/vcpkg-custom-ports/ports/cpprestsdk/portfile.cmake" <<'PY'
 import sys
 from pathlib import Path
 
-path = Path(sys.argv[1])
-text = path.read_text()
+cmake_path = Path(sys.argv[1])
+portfile_path = Path(sys.argv[2])
 
+cmake_text = cmake_path.read_text()
 old_block = '''if (APPLE)
     FetchContent_Declare(kdf
             URL https://devbuilds.gleec.com/dev/kdf_a12695e-mac-x86-64.zip)
@@ -473,24 +474,31 @@ else ()
 endif ()
 '''
 new_block = '# Local KDF is staged by build-mac.sh; do not fetch upstream devbuilds.\n'
-
 old_make_available = 'FetchContent_MakeAvailable(kdf jl777-coins qmaterial)'
 new_make_available = 'FetchContent_MakeAvailable(jl777-coins qmaterial)'
-
 old_copy = '    configure_file(${kdf_SOURCE_DIR}/kdf ${CMAKE_CURRENT_SOURCE_DIR}/assets/tools/kdf/${DEX_API} COPYONLY)'
 new_copy = '    configure_file(${CMAKE_CURRENT_SOURCE_DIR}/assets/tools/kdf/kdf ${CMAKE_CURRENT_SOURCE_DIR}/assets/tools/kdf/${DEX_API} COPYONLY)'
-
-if old_block not in text:
+if old_block not in cmake_text:
     raise SystemExit('kdf FetchContent block not found in CMakeLists.txt')
-if old_make_available not in text:
+if old_make_available not in cmake_text:
     raise SystemExit('FetchContent_MakeAvailable block not found in CMakeLists.txt')
-if old_copy not in text:
+if old_copy not in cmake_text:
     raise SystemExit('local kdf configure_file seam not found in CMakeLists.txt')
+cmake_text = cmake_text.replace(old_block, new_block, 1)
+cmake_text = cmake_text.replace(old_make_available, new_make_available, 1)
+cmake_text = cmake_text.replace(old_copy, new_copy, 1)
+cmake_path.write_text(cmake_text)
 
-text = text.replace(old_block, new_block, 1)
-text = text.replace(old_make_available, new_make_available, 1)
-text = text.replace(old_copy, new_copy, 1)
-path.write_text(text)
+port_text = portfile_path.read_text()
+needle = 'vcpkg_cmake_configure(\n'
+patch = 'vcpkg_replace_string("${SOURCE_PATH}/Release/cmake/cpprest_find_openssl.cmake"\n    "::SSL_COMP_free_compression_methods();"\n    "SSL_COMP_free_compression_methods();")\n\n' + needle
+if '::SSL_COMP_free_compression_methods();' in port_text:
+    port_text = port_text.replace('::SSL_COMP_free_compression_methods();', 'SSL_COMP_free_compression_methods();')
+elif 'vcpkg_replace_string("${SOURCE_PATH}/Release/cmake/cpprest_find_openssl.cmake"' not in port_text:
+    if needle not in port_text:
+        raise SystemExit('cpprestsdk portfile configure seam not found')
+    port_text = port_text.replace(needle, patch, 1)
+portfile_path.write_text(port_text)
 PY
 }
 
@@ -566,7 +574,7 @@ build_desktop() {
 
     step "6/6" "Preparing desktop source (${DESKTOP_COMMIT})"
     checkout_repo "$DESKTOP_REPO" "$desktop_dir" "$DESKTOP_COMMIT"
-    apply_local_kdf_patch "$desktop_dir"
+    apply_local_desktop_patches "$desktop_dir"
     ok "Desktop source at $(cd "$desktop_dir" && git rev-parse --short HEAD)"
 
     info "Using SDK: $SDK_PATH_RESOLVED"
