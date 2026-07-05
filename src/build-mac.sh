@@ -96,6 +96,10 @@ SDK_PATH_RESOLVED=""
 HOST_ARCH=""
 RUST_TARGET=""
 VCPKG_TRIPLET=""
+BUILD_ARCH=""
+BUILD_RUST_TARGET=""
+BUILD_VCPKG_TRIPLET=""
+BUILD_CMAKE_OSX_ARCH=""
 QT_VERSION="5.15.2"
 
 append_unique() {
@@ -123,11 +127,19 @@ host_setup() {
             HOST_ARCH="arm64"
             RUST_TARGET="aarch64-apple-darwin"
             VCPKG_TRIPLET="arm64-osx"
+            BUILD_ARCH="arm64"
+            BUILD_RUST_TARGET="aarch64-apple-darwin"
+            BUILD_VCPKG_TRIPLET="arm64-osx"
+            BUILD_CMAKE_OSX_ARCH="arm64"
             ;;
         x86_64)
             HOST_ARCH="x86_64"
             RUST_TARGET="x86_64-apple-darwin"
             VCPKG_TRIPLET="x64-osx"
+            BUILD_ARCH="x86_64"
+            BUILD_RUST_TARGET="x86_64-apple-darwin"
+            BUILD_VCPKG_TRIPLET="x64-osx"
+            BUILD_CMAKE_OSX_ARCH="x86_64"
             ;;
         *)
             die "Unsupported macOS architecture: $(uname -m)"
@@ -358,6 +370,18 @@ resolve_python() {
     die "Could not resolve a usable Python interpreter"
 }
 
+set_build_arch_for_qt() {
+    local source_kind="$1"
+
+    if [ "$source_kind" = "aqt-clang_64" ] && [ "$HOST_ARCH" = "arm64" ]; then
+        BUILD_ARCH="x86_64"
+        BUILD_RUST_TARGET="x86_64-apple-darwin"
+        BUILD_VCPKG_TRIPLET="x64-osx"
+        BUILD_CMAKE_OSX_ARCH="x86_64"
+        warn "Qt ${QT_VERSION} clang_64 is Intel-only; building desktop path for x86_64 parity"
+    fi
+}
+
 install_qt_via_aqt() {
     local qt_root_base
     local aqt_venv
@@ -393,12 +417,18 @@ resolve_qt() {
         QT_INSTALL_CMAKE_PATH_RESOLVED="$QT_INSTALL_CMAKE_PATH"
         if [ -n "${QT_ROOT:-}" ] && [ -x "${QT_ROOT}/clang_64/bin/macdeployqt" ]; then
             QT_ROOT_RESOLVED="$QT_ROOT"
+            case "$QT_INSTALL_CMAKE_PATH" in
+                */clang_64/*) set_build_arch_for_qt "aqt-clang_64" ;;
+            esac
             return
         fi
         qt_prefix="$(cd "${QT_INSTALL_CMAKE_PATH}/../.." && pwd)"
         qt_macdeploy="$qt_prefix/bin/macdeployqt"
         [ -x "$qt_macdeploy" ] || die "QT_INSTALL_CMAKE_PATH is set, but macdeployqt was not found next to it"
         QT_ROOT_RESOLVED="$(dirname "$qt_prefix")"
+        case "$QT_INSTALL_CMAKE_PATH" in
+            */clang_64/*) set_build_arch_for_qt "aqt-clang_64" ;;
+        esac
         return
     fi
 
@@ -421,6 +451,7 @@ resolve_qt() {
     QT_INSTALL_CMAKE_PATH_RESOLVED="$aqt_cmake"
     QT_ROOT_RESOLVED="$aqt_root"
     [ -x "$QT_ROOT_RESOLVED/clang_64/bin/macdeployqt" ] || die "Qt install is missing macdeployqt"
+    set_build_arch_for_qt "aqt-clang_64"
 }
 
 ensure_sdk() {
@@ -499,14 +530,14 @@ build_kdf() {
     checkout_repo "$KDF_REPO" "$kdf_dir" "$KDF_COMMIT"
     ok "KDF source at $(cd "$kdf_dir" && git rev-parse --short HEAD)"
 
-    step "4/6" "Building KDF for ${HOST_ARCH} (${RUST_TARGET})"
+    step "4/6" "Building KDF for ${BUILD_ARCH} (${BUILD_RUST_TARGET})"
     (
         cd "$kdf_dir"
-        rustup target add "$RUST_TARGET" >/dev/null 2>&1 || true
-        cargo build --release --target "$RUST_TARGET" -p mm2_bin_lib -j "$BUILD_CPUS"
+        rustup target add "$BUILD_RUST_TARGET" >/dev/null 2>&1 || true
+        cargo build --release --target "$BUILD_RUST_TARGET" -p mm2_bin_lib -j "$BUILD_CPUS"
     )
 
-    cp "$kdf_dir/target/${RUST_TARGET}/release/kdf" "$OUTPUT_DIR/kdf"
+    cp "$kdf_dir/target/${BUILD_RUST_TARGET}/release/kdf" "$OUTPUT_DIR/kdf"
     shasum -a 256 "$OUTPUT_DIR/kdf" | awk '{print $1}' > "$OUTPUT_DIR/kdf.sha256"
     ok "KDF → $OUTPUT_DIR/kdf"
     ok "SHA256: $(cat "$OUTPUT_DIR/kdf.sha256")"
@@ -596,13 +627,9 @@ show_vcpkg_failure_logs() {
 
 build_libwally() {
     local libwally_dir="${BUILD_ROOT}/libwally-core"
+    local arch_flags="-arch ${BUILD_CMAKE_OSX_ARCH} -isysroot ${SDK_PATH_RESOLVED} -mmacosx-version-min=11.3"
 
-    if [ -f "${LOCAL_PREFIX}/lib/libwallycore.a" ] && [ -f "${LOCAL_PREFIX}/include/wally_core.h" ]; then
-        ok "libwally already installed in ${LOCAL_PREFIX}"
-        return
-    fi
-
-    step "5/6" "Building libwally-core into local prefix"
+    step "5/6" "Building libwally-core into local prefix (${BUILD_ARCH})"
     if [ -d "$libwally_dir/.git" ]; then
         (
             cd "$libwally_dir"
@@ -619,8 +646,11 @@ build_libwally() {
 
     (
         cd "$libwally_dir"
-        env PATH="$SHIM_DIR:$PATH" LIBTOOL=glibtool LIBTOOLIZE=glibtoolize CC=clang CXX=clang++ ./tools/autogen.sh
-        env PATH="$SHIM_DIR:$PATH" LIBTOOL=glibtool LIBTOOLIZE=glibtoolize CC=clang CXX=clang++ \
+        env PATH="$SHIM_DIR:$PATH" LIBTOOL=glibtool LIBTOOLIZE=glibtoolize \
+            CC=clang CXX=clang++ CFLAGS="$arch_flags" CXXFLAGS="$arch_flags" LDFLAGS="$arch_flags" \
+            ./tools/autogen.sh
+        env PATH="$SHIM_DIR:$PATH" LIBTOOL=glibtool LIBTOOLIZE=glibtoolize \
+            CC=clang CXX=clang++ CFLAGS="$arch_flags" CXXFLAGS="$arch_flags" LDFLAGS="$arch_flags" \
             ./configure --disable-shared --disable-tests --prefix="$LOCAL_PREFIX"
         make -j"$BUILD_CPUS"
         make install
@@ -650,7 +680,8 @@ build_desktop() {
 
     info "Using SDK: $SDK_PATH_RESOLVED"
     info "Using Qt CMake path: $QT_INSTALL_CMAKE_PATH_RESOLVED"
-    info "Using vcpkg triplet: $VCPKG_TRIPLET"
+    info "Using desktop arch: $BUILD_ARCH"
+    info "Using vcpkg triplet: $BUILD_VCPKG_TRIPLET"
 
     export QT_INSTALL_CMAKE_PATH="$QT_INSTALL_CMAKE_PATH_RESOLVED"
     export QT_ROOT="$QT_ROOT_RESOLVED"
@@ -683,7 +714,7 @@ build_desktop() {
         cd "$desktop_dir"
         git checkout -- vcpkg.json
         "${VCPKG_ROOT}/vcpkg" install \
-            --triplet "$VCPKG_TRIPLET" \
+            --triplet "$BUILD_VCPKG_TRIPLET" \
             --overlay-ports "$desktop_dir/ci_tools_atomic_dex/vcpkg-custom-ports/ports" \
             --overlay-triplets "$desktop_dir/cmake"
     ); then
@@ -697,6 +728,7 @@ build_desktop() {
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_OSX_SYSROOT="$SDK_PATH_RESOLVED" \
         -DCMAKE_OSX_DEPLOYMENT_TARGET=11.3 \
+        -DCMAKE_OSX_ARCHITECTURES="$BUILD_CMAKE_OSX_ARCH" \
         -DCMAKE_PREFIX_PATH="$QT_INSTALL_CMAKE_PATH_RESOLVED" \
         -DCMAKE_INCLUDE_PATH="${LOCAL_PREFIX}/include" \
         -DCMAKE_LIBRARY_PATH="${LOCAL_PREFIX}/lib"
@@ -767,8 +799,13 @@ main() {
     fi
 
     read_sources
+
+    if ! $FLAG_KDF_ONLY; then
+        resolve_qt
+    fi
+
     echo ""
-    echo "  CPUs: ${BUILD_CPUS}  |  host: ${HOST_ARCH}  |  KDF: ${KDF_COMMIT}  |  Desktop: ${DESKTOP_COMMIT}"
+    echo "  CPUs: ${BUILD_CPUS}  |  host: ${HOST_ARCH}  |  build: ${BUILD_ARCH}  |  KDF: ${KDF_COMMIT}  |  Desktop: ${DESKTOP_COMMIT}"
     echo ""
 
     if $FLAG_DRY_RUN; then
