@@ -360,7 +360,9 @@ resolve_python() {
 
 install_qt_via_aqt() {
     local qt_root_base
+    local aqt_venv
     qt_root_base="${BUILD_ROOT}/Qt"
+    aqt_venv="${BUILD_ROOT}/aqt-venv"
 
     if qt_cmake_dir_is_complete "$(qt_aqt_cmake_dir)"; then
         return 0
@@ -373,8 +375,10 @@ install_qt_via_aqt() {
 
     resolve_python
     step "qt" "Installing Qt ${QT_VERSION} + WebEngine via aqtinstall"
-    "$PYTHON_BIN" -m pip install --user aqtinstall==3.1.1
-    "$PYTHON_BIN" -m aqt install-qt mac desktop "$QT_VERSION" clang_64 -O "$qt_root_base" -m qtcharts debug_info qtwebengine
+    "$PYTHON_BIN" -m venv "$aqt_venv"
+    "$aqt_venv/bin/python" -m pip install --upgrade pip
+    "$aqt_venv/bin/python" -m pip install aqtinstall==3.1.1
+    "$aqt_venv/bin/python" -m aqt install-qt mac desktop "$QT_VERSION" clang_64 -O "$qt_root_base" -m qtcharts debug_info qtwebengine
 
     qt_cmake_dir_is_complete "$(qt_aqt_cmake_dir)" || die "aqtinstall completed, but Qt WebEngine modules are still missing"
 }
