@@ -498,6 +498,14 @@ elif 'vcpkg_replace_string("${SOURCE_PATH}/Release/cmake/cpprest_find_openssl.cm
     if needle not in port_text:
         raise SystemExit('cpprestsdk portfile configure seam not found')
     port_text = port_text.replace(needle, patch, 1)
+
+openssl_opt = '        -DOPENSSL_ROOT_DIR=${CURRENT_INSTALLED_DIR}\n'
+if '-DOPENSSL_ROOT_DIR=${CURRENT_INSTALLED_DIR}' not in port_text:
+    anchor = '        -DCPPREST_EXPORT_DIR=share/cpprestsdk\n'
+    if anchor not in port_text:
+        raise SystemExit('cpprestsdk OPENSSL_ROOT_DIR seam not found')
+    port_text = port_text.replace(anchor, anchor + openssl_opt, 1)
+
 portfile_path.write_text(port_text)
 PY
 }
