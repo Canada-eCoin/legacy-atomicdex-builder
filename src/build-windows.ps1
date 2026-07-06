@@ -1,4 +1,4 @@
-# ============================================================================
+﻿# ============================================================================
 # build-windows.ps1 — Native Windows build for legacy atomicdex
 # ============================================================================
 # Single source of truth for Windows builds. Runs on bare metal, in CI,
@@ -55,6 +55,10 @@ if ($Help) {
 }
 
 # ── Globals ──────────────────────────────────────────────────
+
+# Reload PATH from registry so winget/choco installs are visible
+$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+
 $ScriptDir    = Split-Path -Parent $PSCommandPath
 $ProjectDir   = Split-Path -Parent $ScriptDir
 $ConfigDir    = Join-Path $ProjectDir "config"
@@ -226,32 +230,33 @@ function Check-Deps {
     # ── C/C++ toolchain ────────────────────────────────────
     Write-Host ""
     Write-Host "C/C++ toolchain (for desktop wallet):" -ForegroundColor White
-    $hasMSVC = $false
+    $script:hasMSVC = $false
     $hasMinGW = $false
 
     # Check for Visual Studio / MSVC
-    $vsPath = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" `
-        -latest -property installationPath 2>$null
+    $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+    $vsPath = if (Test-Path $vswhere) { & $vswhere -latest -property installationPath 2>$null } else { $null }
     if ($vsPath) {
         $vcvars = Join-Path $vsPath "VC\Auxiliary\Build\vcvars64.bat"
         if (Test-Path $vcvars) {
             OK "Visual Studio + MSVC — native C/C++ compiler"
-            $hasMSVC = $true
+            $script:hasMSVC = $true
         }
     }
 
-    if (-not $hasMSVC) {
+    if (-not $script:hasMSVC) {
         # Check for VS Build Tools
-        $btPath = & "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe" `
-            -products Microsoft.VisualStudio.Product.BuildTools `
-            -latest -property installationPath 2>$null
-        if ($btPath) {
-            OK "Visual Studio Build Tools — C/C++ compiler"
-            $hasMSVC = $true
+        $btDir = if (Test-Path $vswhere) { & $vswhere -products Microsoft.VisualStudio.Product.BuildTools -latest -property installationPath 2>$null } else { $null }
+        if ($btDir) {
+            $msvcDirs = Get-ChildItem "$btDir\VC\Tools\MSVC\14*" -Directory -ErrorAction SilentlyContinue
+            if ($msvcDirs) {
+                OK "Visual Studio Build Tools — C/C++ compiler"
+                $script:hasMSVC = $true
+            }
         }
     }
 
-    if (-not $hasMSVC) {
+    if (-not $script:hasMSVC) {
         # Check MinGW
         if (Get-Command gcc -ErrorAction SilentlyContinue) {
             OK "MinGW-w64 (gcc) — cross-compiler toolchain"
@@ -262,7 +267,7 @@ function Check-Deps {
         }
     }
 
-    if (-not $hasMSVC -and -not $hasMinGW) {
+    if (-not $script:hasMSVC -and -not $hasMinGW) {
         Fail "No C/C++ toolchain found"
         Write-Host "    → For Rust-only (KDF): no C compiler needed" -ForegroundColor Yellow
         Write-Host "    → For desktop: install Visual Studio Build Tools (FREE)" -ForegroundColor Yellow
@@ -270,8 +275,8 @@ function Check-Deps {
         Write-Host "      Select: 'Desktop development with C++' workload (~6GB)" -ForegroundColor Yellow
         if (-not $KdfOnly) {
             Warn "Desktop wallet needs MSVC. Build KDF only with -KdfOnly flag."
+            $totalMissing++
         }
-        $totalMissing++
     }
 
     # ── OpenSSL ────────────────────────────────────────────
@@ -296,10 +301,18 @@ function Check-Deps {
     }
 
     # ── Protobuf ────────────────────────────────────────────
-    if (-not (Test-Command "protoc" "protobuf" "Protocol Buffers compiler" `
-        "choco install protoc -y")) {
-        $totalMissing++
+    $protocFound = Test-Command "protoc" "protobuf" "Protocol Buffers compiler" "choco install protoc -y"
+    if (-not $protocFound) {
+        $wingetProtoc = Get-ChildItem "$env:LOCALAPPDATA\Microsoft\WinGet\Packages\Google.Protobuf*\bin\protoc.exe" -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($wingetProtoc) {
+            $protocDir = Split-Path $wingetProtoc.FullName -Parent
+            $env:Path = "$protocDir;$env:Path"
+            $env:PROTOC = $wingetProtoc.FullName
+            OK "protobuf — via WinGet at $protocDir"
+            $protocFound = $true
+        }
     }
+    if (-not $protocFound) { $totalMissing++ }
 
     # ── Summary ─────────────────────────────────────────────
     Write-Host ""
@@ -410,10 +423,11 @@ function Build-Kdf {
     Push-Location $kdfDir
 
     # Pick Rust target (ENV override, or auto-detect)
+    $hasMsys = (Get-Command link.exe -ErrorAction SilentlyContinue) -or (Test-Path "${env:ProgramFiles(x86)}\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14*\bin\Hostx64\x64\link.exe")
     if ($env:KDF_TARGET) {
         $rustTarget = $env:KDF_TARGET
         Info "KDF target from KDF_TARGET: $rustTarget"
-    } elseif ($hasMSVC) {
+    } elseif ($script:hasMSVC) {
         $rustTarget = "x86_64-pc-windows-msvc"
     } else {
         $rustTarget = "x86_64-pc-windows-gnu"
@@ -424,6 +438,36 @@ function Build-Kdf {
     rustup target add $rustTarget 2>&1 | Out-Null
 
     $env:SOURCE_DATE_EPOCH = (git log -1 --format=%ct)
+
+    # Set up MSVC environment if using MSVC target
+    if ($rustTarget -eq "x86_64-pc-windows-msvc" -and -not $env:LIB) {
+        $msvcDirs = Get-ChildItem "${env:ProgramFiles(x86)}\Microsoft Visual Studio\2022\BuildTools\VC\Tools\MSVC\14*" -Directory -ErrorAction SilentlyContinue
+        if ($msvcDirs) {
+            $msvcRoot = $msvcDirs[-1].FullName
+            $sdkDirs = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\Lib\10*" -Directory -ErrorAction SilentlyContinue
+            $sdkVer = if ($sdkDirs) { $sdkDirs[-1].Name } else { $null }
+            $msvcBin = "$msvcRoot\bin\Hostx64\x64"
+            if (Test-Path $msvcBin) {
+                $env:Path = "$msvcBin;$env:Path"
+                $env:LIB = "$msvcRoot\lib\x64"
+                if ($sdkVer) {
+                    $sdkRoot = "${env:ProgramFiles(x86)}\Windows Kits\10"
+                    $env:LIB += ";$sdkRoot\Lib\$sdkVer\ucrt\x64;$sdkRoot\Lib\$sdkVer\um\x64"
+                    $env:INCLUDE = "$msvcRoot\include;$sdkRoot\Include\$sdkVer\ucrt;$sdkRoot\Include\$sdkVer\um;$sdkRoot\Include\$sdkVer\shared"
+                }
+            }
+        }
+    }
+
+    # Find protoc
+    if (-not (Get-Command protoc -ErrorAction SilentlyContinue)) {
+        $protocDirs = Get-ChildItem "$env:LOCALAPPDATA\Microsoft\WinGet\Packages\Google.Protobuf*\bin\protoc.exe" -ErrorAction SilentlyContinue
+        if ($protocDirs) {
+            $protocDir = Split-Path (Split-Path $protocDirs[-1].FullName -Parent) -Parent
+            $env:Path = "$protocDir\bin;$env:Path"
+            $env:PROTOC = "$protocDir\bin\protoc.exe"
+        }
+    }
 
     # Build
     $buildResult = cargo build --release `
@@ -442,12 +486,12 @@ function Build-Kdf {
     OK "KDF compiled successfully"
 
     # Copy output
-    $kdfSrc = Join-Path "target" $rustTarget "release" "kdf.exe"
+    $kdfSrc = "target\$rustTarget\release\kdf.exe"
     if (Test-Path $kdfSrc) {
         Copy-Item $kdfSrc (Join-Path $OutputDir "kdf.exe") -Force
     } else {
         # Cargo sometimes names it differently
-        $found = Get-ChildItem -Path "target\$rustTarget\release" -Filter "kdf*" -Recurse | Select-Object -First 1
+        $found = Get-ChildItem -Path "target\$rustTarget\release" -Filter "kdf.exe" | Select-Object -First 1
         if ($found) {
             Copy-Item $found.FullName (Join-Path $OutputDir "kdf.exe") -Force
         } else {

@@ -2,7 +2,8 @@
 
 > [!WARNING]
 > This project is in a **very early first release** state.
-> **Linux is currently the only verified build path.**
+> Tested paths: Linux, macOS Intel/x86_64, native macOS arm64 / Apple Silicon, and Windows.
+> Native macOS arm64 builds run with the QtWebEngine-dependent chart/price widget disabled.
 > Deterministic / reproducible builds are **not finished yet**.
 > Please read [STATUS.md](./STATUS.md) before relying on any build pathway.
 > Contributions and testers are welcome on **all platforms**.
@@ -16,9 +17,18 @@ Portable build scripts for producing verified Komodo/AtomicDEX legacy artifacts:
 The build is **native-first**: each platform script is the source of truth.
 Docker is available for clean-room Linux builds, but it is not required.
 
-**Proven build:** KDF engine (~65 MB) and desktop AppImage (~187 MB)
+**Proven Linux build:** KDF engine (~65 MB) and desktop AppImage (~187 MB)
 built from `cipig/nogeo` on ubuntu:22.04 / glibc 2.35. The artifacts run
 on Debian 12+ and modern Linux systems.
+
+**Tested macOS builds:** Intel/x86_64 desktop app, plus native arm64 / Apple
+Silicon desktop app on Mac mini M2. The native arm64 path disables the
+QtWebEngine-dependent chart/price widget because Homebrew `qt@5` does not
+ship QtWebEngine on arm64.
+
+**Tested Windows build:** Full KDF + desktop wallet build on Windows 10+
+x86_64 with VS Build Tools 2022, Qt 5.15.2, and vcpkg. Detailed walkthrough
+in [WINDOWS.md](./WINDOWS.md).
 
 ---
 
@@ -160,7 +170,7 @@ src/build-mac.sh --yes              # skip consent prompts
 src/build-mac.sh --dry-run          # check dependencies and print plan
 ```
 
-Requires Xcode CLI tools. The Intel path is the currently better-validated macOS build shape; native arm64 remains in progress and may require a local arm64 Qt5 + QtWebEngine install.
+Requires Xcode CLI tools. The Intel/x86_64 path builds the full QtWebEngine desktop shape. The native arm64 / Apple Silicon path is tested on Mac mini M2 and disables the QtWebEngine-dependent chart/price widget because Homebrew `qt@5` does not provide QtWebEngine on arm64.
 
 ### Windows
 
@@ -171,8 +181,8 @@ src/build-windows.ps1 -Yes          # skip prompts
 src/build-windows.ps1 -DryRun       # check dependencies and print plan
 ```
 
-KDF builds natively with Rust. Desktop wallet builds require Qt5 + MSVC
-setup; the script prints the required guidance.
+KDF builds natively with Rust. Desktop wallet builds with Qt5 + MSVC;
+full walkthrough in [WINDOWS.md](./WINDOWS.md).
 
 ---
 
@@ -356,7 +366,7 @@ atomicdex-legacy-builder/
 | Build uses too much CPU | Set a lower cap: `BUILD_CPUS=2 src/build-linux.sh`. |
 | Docker out of disk | Run `docker system prune -a` if you are comfortable deleting Docker cache/images. |
 | macOS: `xcode-select` error | Run `xcode-select --install`. |
-| Windows: KDF builds but desktop does not | Desktop requires Qt5 + MSVC setup; read the script guidance. |
+| Windows: Qt/WebEngine link errors | See [WINDOWS.md](./WINDOWS.md) troubleshooting — most common causes are MSVC toolset version mismatch and libsodium overlay port path. |
 
 ---
 
