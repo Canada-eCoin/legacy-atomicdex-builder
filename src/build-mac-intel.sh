@@ -259,6 +259,7 @@ check_all_deps() {
     command -v automake >/dev/null 2>&1  && ok "automake — libwally build"         || { fail "automake missing"; add_missing_formula "automake" "libwally build"; }
     command -v glibtool >/dev/null 2>&1  && ok "glibtool — GNU libtool"            || { fail "glibtool missing"; add_missing_formula "libtool" "GNU libtool on macOS"; }
     command -v glibtoolize >/dev/null 2>&1 && ok "glibtoolize — GNU libtoolize"    || { fail "glibtoolize missing"; add_missing_formula "libtool" "GNU libtoolize on macOS"; }
+    command -v gsed >/dev/null 2>&1         && ok "gsed — GNU sed (autotools)"         || { fail "gsed missing"; add_missing_formula "gnu-sed" "GNU sed on macOS"; }
 
     if $HAVE_BREW; then
         if brew list --formula autoconf-archive >/dev/null 2>&1; then
