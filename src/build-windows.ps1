@@ -127,6 +127,35 @@ function Log($msg) {
     "$timestamp $msg" | Out-File -Append -FilePath $LogFile -Encoding utf8
 }
 
+function Invoke-GitLogged {
+    param(
+        [string[]]$Arguments,
+        [string]$StepLabel
+    )
+
+    $gitExe = (Get-Command git -ErrorAction Stop).Source
+    $stdoutPath = Join-Path $LogDir ("git-$StepLabel.stdout.log")
+    $stderrPath = Join-Path $LogDir ("git-$StepLabel.stderr.log")
+
+    Remove-Item $stdoutPath, $stderrPath -Force -ErrorAction SilentlyContinue
+
+    $proc = Start-Process -FilePath $gitExe `
+        -ArgumentList $Arguments `
+        -NoNewWindow `
+        -Wait `
+        -PassThru `
+        -RedirectStandardOutput $stdoutPath `
+        -RedirectStandardError $stderrPath
+
+    [PSCustomObject]@{
+        ExitCode   = $proc.ExitCode
+        Stdout     = if (Test-Path $stdoutPath) { Get-Content $stdoutPath } else { @() }
+        Stderr     = if (Test-Path $stderrPath) { Get-Content $stderrPath } else { @() }
+        StdoutPath = $stdoutPath
+        StderrPath = $stderrPath
+    }
+}
+
 Log "=== BUILD STARTED $(Get-Date -Format 'o') ==="
 Log "  CPUs: $BuildCpus"
 Log "  KDF: $KdfCommit"
@@ -403,30 +432,39 @@ function Build-Kdf {
     if (Test-Path (Join-Path $kdfDir ".git")) {
         Push-Location $kdfDir
 
-        $fetchOutput = git fetch origin 2>&1
-        if ($LASTEXITCODE -ne 0) {
+        $fetchResult = Invoke-GitLogged -Arguments @('-c', 'core.longpaths=true', 'fetch', 'origin') -StepLabel 'fetch'
+        if ($fetchResult.ExitCode -ne 0) {
             Pop-Location
             Fail "KDF fetch failed"
             Log "KDF fetch FAILED"
-            $fetchOutput | ForEach-Object { Info $_ }
+            Info "stdout → $($fetchResult.StdoutPath)"
+            $fetchResult.Stdout | ForEach-Object { Info $_ }
+            Info "stderr → $($fetchResult.StderrPath)"
+            $fetchResult.Stderr | ForEach-Object { Info $_ }
             exit 1
         }
 
-        $checkoutOutput = git checkout $KdfCommit 2>&1
-        if ($LASTEXITCODE -ne 0) {
+        $checkoutResult = Invoke-GitLogged -Arguments @('checkout', $KdfCommit) -StepLabel 'checkout'
+        if ($checkoutResult.ExitCode -ne 0) {
             Pop-Location
             Fail "KDF checkout failed"
             Log "KDF checkout FAILED"
-            $checkoutOutput | ForEach-Object { Info $_ }
+            Info "stdout → $($checkoutResult.StdoutPath)"
+            $checkoutResult.Stdout | ForEach-Object { Info $_ }
+            Info "stderr → $($checkoutResult.StderrPath)"
+            $checkoutResult.Stderr | ForEach-Object { Info $_ }
             exit 1
         }
 
-        $submoduleOutput = git submodule update --init --recursive 2>&1
-        if ($LASTEXITCODE -ne 0) {
+        $submoduleResult = Invoke-GitLogged -Arguments @('submodule', 'update', '--init', '--recursive') -StepLabel 'submodules'
+        if ($submoduleResult.ExitCode -ne 0) {
             Pop-Location
             Fail "KDF submodule update failed"
             Log "KDF submodule update FAILED"
-            $submoduleOutput | ForEach-Object { Info $_ }
+            Info "stdout → $($submoduleResult.StdoutPath)"
+            $submoduleResult.Stdout | ForEach-Object { Info $_ }
+            Info "stderr → $($submoduleResult.StderrPath)"
+            $submoduleResult.Stderr | ForEach-Object { Info $_ }
             exit 1
         }
 
@@ -435,31 +473,40 @@ function Build-Kdf {
     } else {
         Remove-Item -Recurse -Force $kdfDir -ErrorAction SilentlyContinue
 
-        $cloneOutput = git clone --no-checkout $KdfRepo $kdfDir 2>&1
-        if ($LASTEXITCODE -ne 0) {
+        $cloneResult = Invoke-GitLogged -Arguments @('-c', 'core.longpaths=true', 'clone', '--progress', '--verbose', '--no-checkout', $KdfRepo, $kdfDir) -StepLabel 'clone'
+        if ($cloneResult.ExitCode -ne 0) {
             Fail "KDF clone failed"
             Log "KDF clone FAILED"
-            $cloneOutput | ForEach-Object { Info $_ }
+            Info "stdout → $($cloneResult.StdoutPath)"
+            $cloneResult.Stdout | ForEach-Object { Info $_ }
+            Info "stderr → $($cloneResult.StderrPath)"
+            $cloneResult.Stderr | ForEach-Object { Info $_ }
             exit 1
         }
 
         Push-Location $kdfDir
 
-        $checkoutOutput = git checkout $KdfCommit 2>&1
-        if ($LASTEXITCODE -ne 0) {
+        $checkoutResult = Invoke-GitLogged -Arguments @('checkout', $KdfCommit) -StepLabel 'checkout'
+        if ($checkoutResult.ExitCode -ne 0) {
             Pop-Location
             Fail "KDF checkout failed"
             Log "KDF checkout FAILED"
-            $checkoutOutput | ForEach-Object { Info $_ }
+            Info "stdout → $($checkoutResult.StdoutPath)"
+            $checkoutResult.Stdout | ForEach-Object { Info $_ }
+            Info "stderr → $($checkoutResult.StderrPath)"
+            $checkoutResult.Stderr | ForEach-Object { Info $_ }
             exit 1
         }
 
-        $submoduleOutput = git submodule update --init --recursive 2>&1
-        if ($LASTEXITCODE -ne 0) {
+        $submoduleResult = Invoke-GitLogged -Arguments @('submodule', 'update', '--init', '--recursive') -StepLabel 'submodules'
+        if ($submoduleResult.ExitCode -ne 0) {
             Pop-Location
             Fail "KDF submodule update failed"
             Log "KDF submodule update FAILED"
-            $submoduleOutput | ForEach-Object { Info $_ }
+            Info "stdout → $($submoduleResult.StdoutPath)"
+            $submoduleResult.Stdout | ForEach-Object { Info $_ }
+            Info "stderr → $($submoduleResult.StderrPath)"
+            $submoduleResult.Stderr | ForEach-Object { Info $_ }
             exit 1
         }
 
