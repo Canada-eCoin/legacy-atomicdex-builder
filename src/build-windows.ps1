@@ -397,19 +397,72 @@ function Build-Kdf {
     Step "3/5" "Cloning KDF source (pinned commit $KdfCommit)..."
     $kdfDir = Join-Path $BuildDir "kdf"
 
+    git config --global core.longpaths true 2>&1 | Out-Null
+    git config --global advice.detachedHead false 2>&1 | Out-Null
+
     if (Test-Path (Join-Path $kdfDir ".git")) {
         Push-Location $kdfDir
-        git fetch origin 2>&1 | Out-Null
-        git checkout $KdfCommit 2>&1 | Out-Null
-        git submodule update --init --recursive 2>&1 | Out-Null
+
+        $fetchOutput = git fetch origin 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            Pop-Location
+            Fail "KDF fetch failed"
+            Log "KDF fetch FAILED"
+            $fetchOutput | ForEach-Object { Info $_ }
+            exit 1
+        }
+
+        $checkoutOutput = git checkout $KdfCommit 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            Pop-Location
+            Fail "KDF checkout failed"
+            Log "KDF checkout FAILED"
+            $checkoutOutput | ForEach-Object { Info $_ }
+            exit 1
+        }
+
+        $submoduleOutput = git submodule update --init --recursive 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            Pop-Location
+            Fail "KDF submodule update failed"
+            Log "KDF submodule update FAILED"
+            $submoduleOutput | ForEach-Object { Info $_ }
+            exit 1
+        }
+
         Pop-Location
         OK "KDF source updated"
     } else {
         Remove-Item -Recurse -Force $kdfDir -ErrorAction SilentlyContinue
-        git clone $KdfRepo $kdfDir 2>&1 | ForEach-Object { Info $_ }
+
+        $cloneOutput = git clone --no-checkout $KdfRepo $kdfDir 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            Fail "KDF clone failed"
+            Log "KDF clone FAILED"
+            $cloneOutput | ForEach-Object { Info $_ }
+            exit 1
+        }
+
         Push-Location $kdfDir
-        git checkout $KdfCommit 2>&1 | Out-Null
-        git submodule update --init --recursive 2>&1 | Out-Null
+
+        $checkoutOutput = git checkout $KdfCommit 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            Pop-Location
+            Fail "KDF checkout failed"
+            Log "KDF checkout FAILED"
+            $checkoutOutput | ForEach-Object { Info $_ }
+            exit 1
+        }
+
+        $submoduleOutput = git submodule update --init --recursive 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            Pop-Location
+            Fail "KDF submodule update failed"
+            Log "KDF submodule update FAILED"
+            $submoduleOutput | ForEach-Object { Info $_ }
+            exit 1
+        }
+
         Pop-Location
         OK "KDF source cloned"
     }

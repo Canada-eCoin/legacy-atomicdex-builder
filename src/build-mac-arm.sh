@@ -254,6 +254,7 @@ check_all_deps() {
     command -v curl >/dev/null 2>&1      && ok "curl — downloads"                  || { fail "curl missing"; add_missing_formula "curl" "downloads"; }
     command -v cmake >/dev/null 2>&1     && ok "cmake — configure/build"           || { fail "cmake missing"; add_missing_formula "cmake" "configure/build"; }
     command -v ninja >/dev/null 2>&1     && ok "ninja — build backend"             || { fail "ninja missing"; add_missing_formula "ninja" "build backend"; }
+    command -v protoc >/dev/null 2>&1    && ok "protoc — Protocol Buffers compiler" || { fail "protoc missing"; add_missing_formula "protobuf" "Protocol Buffers compiler"; }
     command -v rustup >/dev/null 2>&1    && ok "rustup — Rust toolchain"           || { fail "rustup missing"; add_missing_formula "rustup-init" "Rust toolchain"; }
     command -v cargo >/dev/null 2>&1     && ok "cargo — Rust build"                || { fail "cargo missing"; add_missing_formula "rustup-init" "Rust build"; }
     command -v autoconf >/dev/null 2>&1  && ok "autoconf — libwally build"         || { fail "autoconf missing"; add_missing_formula "autoconf" "libwally build"; }

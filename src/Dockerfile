@@ -54,6 +54,7 @@ ENV PLATFORM=${PLATFORM}
 COPY config/ /builder/config/
 COPY src/docker-build.sh src/_build-lib.sh /builder/src/
 WORKDIR /builder
+RUN chmod +x /builder/src/docker-build.sh
 RUN --mount=type=cache,target=/builder/.build/kdf/target \
     --mount=type=cache,target=/usr/local/cargo/registry \
     --mount=type=cache,target=/usr/local/cargo/git \
@@ -173,6 +174,7 @@ COPY src/docker-build.sh src/_build-lib.sh /builder/src/
 COPY --from=kdf /builder/output/linux/kdf /builder/output/linux/kdf
 
 WORKDIR /builder
+RUN chmod +x /builder/src/docker-build.sh
 RUN --mount=type=cache,target=/builder/.build/desktop/ci_tools_atomic_dex/build-Release \
     --mount=type=cache,target=/builder/.build/desktop/ci_tools_atomic_dex/vcpkg-repo/vcpkg_installed \
     mkdir -p .build/desktop "output/${PLATFORM}" && \
