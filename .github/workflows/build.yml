@@ -1,28 +1,6 @@
 name: atomicdex-builder CI
 
 on:
-  push:
-    branches:
-      - main
-      - master
-    paths:
-      - '.github/workflows/build.yml'
-      - 'commands/**'
-      - 'config/**'
-      - 'src/**'
-      - 'env.sample'
-      - '.dockerignore'
-  pull_request:
-    branches:
-      - main
-      - master
-    paths:
-      - '.github/workflows/build.yml'
-      - 'commands/**'
-      - 'config/**'
-      - 'src/**'
-      - 'env.sample'
-      - '.dockerignore'
   workflow_dispatch:
     inputs:
       linux:
@@ -32,15 +10,15 @@ on:
       macos:
         description: Run macOS Intel build
         type: boolean
-        default: false
+        default: true
       windows:
         description: Run Windows KDF build
         type: boolean
-        default: false
+        default: true
       wasm:
         description: Run KDF WebAssembly build
         type: boolean
-        default: false
+        default: true
 
 permissions:
   contents: read
@@ -56,7 +34,7 @@ env:
 
 jobs:
   ubuntu-release:
-    if: github.event_name != 'workflow_dispatch' || inputs.linux
+    if: inputs.linux
     name: Ubuntu Release
     runs-on: ubuntu-24.04
     timeout-minutes: 180
@@ -96,7 +74,7 @@ jobs:
           if-no-files-found: warn
 
   macos-intel-release:
-    if: github.event_name != 'workflow_dispatch' || inputs.macos
+    if: inputs.macos
     name: macOS Intel Release
     runs-on: macos-15-intel
     timeout-minutes: 240
@@ -133,7 +111,7 @@ jobs:
           if-no-files-found: warn
 
   windows-kdf-release:
-    if: github.event_name != 'workflow_dispatch' || inputs.windows
+    if: inputs.windows
     name: Windows KDF Release
     runs-on: windows-2022
     timeout-minutes: 120
@@ -181,7 +159,7 @@ jobs:
           if-no-files-found: warn
 
   wasm-kdf-release:
-    if: github.event_name != 'workflow_dispatch' || inputs.wasm
+    if: inputs.wasm
     name: KDF WebAssembly
     runs-on: ubuntu-24.04
     timeout-minutes: 120
