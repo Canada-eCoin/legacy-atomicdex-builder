@@ -37,6 +37,10 @@ on:
         description: Run Windows KDF build
         type: boolean
         default: false
+      wasm:
+        description: Run KDF WebAssembly build
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -173,5 +177,45 @@ jobs:
         with:
           name: atomicdex-windows-kdf-logs
           path: logs/windows/
+          retention-days: 30
+          if-no-files-found: warn
+
+  wasm-kdf-release:
+    if: github.event_name != 'workflow_dispatch' || inputs.wasm
+    name: KDF WebAssembly
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build KDF → WASM
+        run: ./commands/build/command.sh wasm
+
+      - name: Show WASM outputs
+        if: always()
+        run: |
+          echo '== output/wasm =='
+          ls -lah output/wasm || true
+          echo
+          echo '== logs/wasm =='
+          ls -lah logs/wasm || true
+
+      - name: Upload WASM output
+        uses: actions/upload-artifact@v7
+        with:
+          name: atomicdex-wasm-kdf-output
+          path: output/wasm/
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Upload WASM logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: atomicdex-wasm-kdf-logs
+          path: logs/wasm/
           retention-days: 30
           if-no-files-found: warn

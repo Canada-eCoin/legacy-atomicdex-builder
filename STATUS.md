@@ -18,7 +18,7 @@ Right now, we have successfully built and tested **Linux**, **macOS Intel/x86_64
 | macOS arm64 / Apple Silicon | Working / tested with WebEngine disabled | Native arm64 desktop app builds and runs on Mac mini M2. QtWebEngine-dependent chart/price widget is disabled because Homebrew `qt@5` does not provide QtWebEngine on arm64. |
 | Windows native x86_64 | Working / tested for KDF; desktop automation incomplete | KDF builds natively with Rust. Desktop wallet builds with Qt5 + MSVC; full walkthrough in [WINDOWS.md](./WINDOWS.md). CI packaging parity is not finished yet. |
 | Windows native arm64 | Roadmap | Future target. Build and packaging shape should mirror Windows x86_64 once toolchain and CI story are defined. |
-| KDF WebAssembly | Experimental / unverified | Build path exists, but needs testing, verification, clearer release expectations, and CI wiring. |
+| KDF WebAssembly | CI wired / early | Docker `wasm-pack` build runs in CI; needs broader verification and deterministic output work. |
 | Deterministic / reproducible builds | Not done yet | Reproducibility work is still outstanding. |
 
 ## Release posture
@@ -48,7 +48,7 @@ Recommended landing order:
 1. Linux x86_64 CI green
 2. Windows x86_64 KDF CI green
 3. macOS Intel CI green
-4. KDF wasm CI added
+4. ~~KDF wasm CI added~~
 5. Windows x86_64 desktop packaging
 6. macOS arm64 polish
 7. Windows ARM64 KDF

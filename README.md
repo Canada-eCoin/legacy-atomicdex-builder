@@ -244,6 +244,7 @@ Current CI shape matches what this repo can actually produce today:
 - **Linux:** full Docker build (`output/linux/`)
 - **macOS Intel:** native Intel/x86_64 build (`output/mac-intel/`)
 - **Windows:** **KDF-only** native build (`output/windows/`)
+- **WASM:** Docker Wasm build via `wasm-pack` (`output/wasm/`)
 
 Notes:
 
@@ -276,14 +277,14 @@ Notes:
 | macOS | arm64 | native path with QtWebEngine limitation | KDF, Qt desktop, DMG, checksums |
 | Windows | x86_64 | KDF-only automation | KDF, Qt desktop, portable ZIP, installer EXE, checksums |
 | Windows | arm64 | roadmap | KDF, Qt desktop, portable ZIP, installer EXE, checksums |
-| KDF | wasm | experimental path exists | wasm KDF artifact, checksums |
+| KDF | wasm | CI added, early Docker build path | wasm KDF artifact, checksums |
 
 Recommended landing order:
 
 1. Linux x86_64 CI green
 2. Windows x86_64 KDF CI green
 3. macOS Intel CI green
-4. KDF wasm CI added
+4. ~~KDF wasm CI added~~
 5. Windows x86_64 desktop packaging
 6. macOS arm64 polish
 7. Windows ARM64 KDF
