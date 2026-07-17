@@ -239,7 +239,17 @@ A starter workflow now lives at:
 .github/workflows/build.yml
 ```
 
-Current CI shape matches what this repo can actually produce today:
+Current CI is **manual-only** via `workflow_dispatch`. Nothing runs on push or PR —
+you trigger builds from the Actions tab or via the CLI helper:
+
+```bash
+./commands/ci/trigger.sh linux          # Linux only
+./commands/ci/trigger.sh linux wasm     # Linux + WASM
+./commands/ci/trigger.sh all            # everything
+./commands/ci/trigger.sh windows --no-wait  # fire and forget
+```
+
+Current CI shape:
 
 - **Linux:** full Docker build (`output/linux/`)
 - **macOS Intel:** native Intel/x86_64 build (`output/mac-intel/`)
@@ -248,17 +258,37 @@ Current CI shape matches what this repo can actually produce today:
 
 Notes:
 
-- Push / PR CI is path-filtered so docs-only changes do not trigger expensive
-  multi-platform builds.
+- No automatic triggers — every build is manual via the Actions tab or `./commands/ci/trigger.sh`.
 - Windows desktop installer / portable zip are **not automated by this repo yet**.
 - macOS CI is pinned to an **Intel runner** because that is the better-validated
   full desktop build path.
 - Each CI job uploads both its `output/<platform>/` artifacts and its
   `logs/<platform>/` build logs.
-- Workflow dispatch remains available for manual rebuilds even when path filters
-  would skip an automatic run.
-- Manual workflow runs are intended to become platform-selectable so known-good
-  platforms do not need to be rebuilt during focused debugging.
+- All four platform toggles default to **on** — uncheck what you want to skip.
+
+### For forks
+
+If you fork this repo and want CI to work, you need to:
+
+1. **Enable Actions** — GitHub disables Actions on forks by default.
+   Go to your fork → Settings → Actions → General → "Allow all actions".
+
+2. **Actions permissions** — the workflow uses `actions: write` for the
+   BuildKit GHA cache backend. Under Settings → Actions → General →
+   Workflow permissions, select **"Read and write permissions"**.
+
+3. **Windows builds need GITHUB_TOKEN** — the Windows job passes
+   `GITHUB_TOKEN` to the build script for authenticated `git clone` of
+   the upstream KDF repo. Without this, shared GitHub runner IPs hit
+   unauthenticated rate limits and the clone fails. Forks get this
+   automatically (GitHub provides `secrets.GITHUB_TOKEN` to all repos),
+   but you must have Actions enabled per step 1 above.
+
+4. **macOS runners** — the macOS Intel job runs on `macos-15-intel`.
+   If your fork/account doesn't have access to macOS runners (private
+   repos on free plans), that job will stay queued indefinitely. Uncheck
+   `macos` when triggering, or remove the job from your fork's copy of
+   the workflow.
 
 ### Current cache posture
 
