@@ -130,6 +130,8 @@ jobs:
 
       - name: Build KDF
         shell: powershell
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: .\src\build-windows.ps1 -KdfOnly -Yes
 
       - name: Show Windows outputs

@@ -1,4 +1,4 @@
-﻿# ============================================================================
+# ============================================================================
 # build-windows.ps1 — Native Windows build for legacy atomicdex
 # ============================================================================
 # Single source of truth for Windows builds. Runs on bare metal, in CI,
@@ -429,8 +429,19 @@ function Build-Kdf {
     git config --global core.longpaths true 2>&1 | Out-Null
     git config --global advice.detachedHead false 2>&1 | Out-Null
 
+    # Use GITHUB_TOKEN for authenticated clones (avoids rate limiting on shared runners)
+    if ($env:GITHUB_TOKEN) {
+        $authUrl = "https://x-access-token:$env:GITHUB_TOKEN@github.com/"
+    } else {
+        $authUrl = $null
+    }
+
     if (Test-Path (Join-Path $kdfDir ".git")) {
         Push-Location $kdfDir
+
+        if ($authUrl) {
+            git config url."$authUrl".insteadOf https://github.com/ 2>&1 | Out-Null
+        }
 
         $fetchResult = Invoke-GitLogged -Arguments @('-c', 'core.longpaths=true', 'fetch', 'origin') -StepLabel 'fetch'
         if ($fetchResult.ExitCode -ne 0) {
@@ -473,7 +484,19 @@ function Build-Kdf {
     } else {
         Remove-Item -Recurse -Force $kdfDir -ErrorAction SilentlyContinue
 
-        $cloneResult = Invoke-GitLogged -Arguments @('-c', 'core.longpaths=true', 'clone', '--progress', '--verbose', '--no-checkout', $KdfRepo, $kdfDir) -StepLabel 'clone'
+        $cloneArgs = @('-c', 'core.longpaths=true')
+        if ($authUrl) {
+            $cloneArgs += '-c'
+            $cloneArgs += "url.$authUrl.insteadOf=https://github.com/"
+        }
+        $cloneArgs += 'clone'
+        $cloneArgs += '--progress'
+        $cloneArgs += '--verbose'
+        $cloneArgs += '--no-checkout'
+        $cloneArgs += $KdfRepo
+        $cloneArgs += $kdfDir
+
+        $cloneResult = Invoke-GitLogged -Arguments $cloneArgs -StepLabel 'clone'
         if ($cloneResult.ExitCode -ne 0) {
             Fail "KDF clone failed"
             Log "KDF clone FAILED"
@@ -485,6 +508,10 @@ function Build-Kdf {
         }
 
         Push-Location $kdfDir
+
+        if ($authUrl) {
+            git config url."$authUrl".insteadOf https://github.com/ 2>&1 | Out-Null
+        }
 
         $checkoutResult = Invoke-GitLogged -Arguments @('checkout', $KdfCommit) -StepLabel 'checkout'
         if ($checkoutResult.ExitCode -ne 0) {
