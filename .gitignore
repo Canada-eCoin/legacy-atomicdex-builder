@@ -9,6 +9,9 @@ squashfs-root/
 # Docker cached source
 .mm2-fork-source/
 
+# Local scratch clones / repo caches
+repos/
+
 # macOS
 .DS_Store
 

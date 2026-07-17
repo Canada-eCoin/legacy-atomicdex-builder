@@ -231,6 +231,34 @@ usually do not run it directly.
 
 ---
 
+## GitHub Actions CI
+
+A starter workflow now lives at:
+
+```text
+.github/workflows/build.yml
+```
+
+Current CI shape matches what this repo can actually produce today:
+
+- **Linux:** full Docker build (`output/linux/`)
+- **macOS Intel:** native Intel/x86_64 build (`output/mac-intel/`)
+- **Windows:** **KDF-only** native build (`output/windows/`)
+
+Notes:
+
+- Push / PR CI is path-filtered so docs-only changes do not trigger expensive
+  multi-platform builds.
+- Windows desktop installer / portable zip are **not automated by this repo yet**.
+- macOS CI is pinned to an **Intel runner** because that is the better-validated
+  full desktop build path.
+- Each CI job uploads both its `output/<platform>/` artifacts and its
+  `logs/<platform>/` build logs.
+- Workflow dispatch remains available for manual rebuilds even when path filters
+  would skip an automatic run.
+
+---
+
 ## What the build does
 
 1. Detects platform, package manager, and architecture.

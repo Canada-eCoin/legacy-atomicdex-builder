@@ -1,0 +1,161 @@
+name: atomicdex-builder CI
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - '.github/workflows/build.yml'
+      - 'commands/**'
+      - 'config/**'
+      - 'src/**'
+      - 'env.sample'
+      - '.dockerignore'
+  pull_request:
+    branches:
+      - main
+      - master
+    paths:
+      - '.github/workflows/build.yml'
+      - 'commands/**'
+      - 'config/**'
+      - 'src/**'
+      - 'env.sample'
+      - '.dockerignore'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: atomicdex-builder-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BUILD_YES: "1"
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: full
+
+jobs:
+  ubuntu-release:
+    name: Ubuntu Release
+    runs-on: ubuntu-24.04
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build KDF + Desktop
+        run: ./commands/build/command.sh
+
+      - name: Show Linux outputs
+        if: always()
+        run: |
+          echo '== output/linux =='
+          ls -lah output/linux || true
+          echo
+          echo '== logs/linux =='
+          ls -lah logs/linux || true
+
+      - name: Upload Linux output
+        uses: actions/upload-artifact@v7
+        with:
+          name: atomicdex-linux-output
+          path: output/linux/
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Upload Linux logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: atomicdex-linux-logs
+          path: logs/linux/
+          retention-days: 30
+          if-no-files-found: warn
+
+  macos-intel-release:
+    name: macOS Intel Release
+    runs-on: macos-15-intel
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Build KDF + Desktop
+        run: ./commands/build/command.sh native --arch intel --yes
+
+      - name: Show macOS Intel outputs
+        if: always()
+        run: |
+          echo '== output/mac-intel =='
+          ls -lah output/mac-intel || true
+          echo
+          echo '== logs/mac-intel =='
+          ls -lah logs/mac-intel || true
+
+      - name: Upload macOS Intel output
+        uses: actions/upload-artifact@v7
+        with:
+          name: atomicdex-macos-intel-output
+          path: output/mac-intel/
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Upload macOS Intel logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: atomicdex-macos-intel-logs
+          path: logs/mac-intel/
+          retention-days: 30
+          if-no-files-found: warn
+
+  windows-kdf-release:
+    name: Windows KDF Release
+    runs-on: windows-2022
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Install protobuf
+        shell: powershell
+        run: choco install protoc -y
+
+      - name: Build KDF
+        shell: powershell
+        run: .\src\build-windows.ps1 -KdfOnly -Yes
+
+      - name: Show Windows outputs
+        if: always()
+        shell: powershell
+        run: |
+          Write-Host '== output/windows =='
+          if (Test-Path 'output/windows') { Get-ChildItem 'output/windows' }
+          Write-Host ''
+          Write-Host '== logs/windows =='
+          if (Test-Path 'logs/windows') { Get-ChildItem 'logs/windows' }
+
+      - name: Upload Windows output
+        uses: actions/upload-artifact@v7
+        with:
+          name: atomicdex-windows-kdf-output
+          path: output/windows/
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Upload Windows logs
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: atomicdex-windows-kdf-logs
+          path: logs/windows/
+          retention-days: 30
+          if-no-files-found: warn
