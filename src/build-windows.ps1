@@ -562,7 +562,20 @@ function Build-Kdf {
     }
 
     # Ensure target
-    rustup target add $rustTarget 2>&1 | Out-Null
+    Write-Host "    → rustup target add $rustTarget"
+    $installedTargets = rustup target list --installed 2>&1
+    if ($installedTargets -match [regex]::Escape($rustTarget)) {
+        Write-Host "    → target already installed, skipping"
+    } else {
+        Write-Host "    → installing target..."
+        $rustupOutput = rustup target add $rustTarget 2>&1
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "    ✗ rustup target add failed (exit $LASTEXITCODE):"
+            $rustupOutput | ForEach-Object { Write-Host "      $_" }
+            exit 1
+        }
+        Write-Host "    ✓ target installed"
+    }
 
     $env:SOURCE_DATE_EPOCH = (git log -1 --format=%ct)
 
