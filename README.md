@@ -256,6 +256,39 @@ Notes:
   `logs/<platform>/` build logs.
 - Workflow dispatch remains available for manual rebuilds even when path filters
   would skip an automatic run.
+- Manual workflow runs are intended to become platform-selectable so known-good
+  platforms do not need to be rebuilt during focused debugging.
+
+### Current cache posture
+
+- **Linux Docker builds:** the Dockerfile already uses BuildKit cache mounts for
+  Cargo, KDF target output, desktop build output, and vcpkg installed state.
+- **GitHub Actions workflow cache:** still early. We are not yet using explicit
+  cross-run `actions/cache` or Buildx `cache-to` / `cache-from` wiring.
+- **macOS / Windows hosted runners:** currently mostly cold-start each run.
+
+### Target roadmap
+
+| Platform | Arch | Current shape | Eventual targets |
+| --- | --- | --- | --- |
+| Linux | x86_64 | KDF + AppImage path | KDF, Qt desktop, AppImage, checksums |
+| macOS | x86_64 | KDF + desktop / DMG path | KDF, Qt desktop, DMG, checksums |
+| macOS | arm64 | native path with QtWebEngine limitation | KDF, Qt desktop, DMG, checksums |
+| Windows | x86_64 | KDF-only automation | KDF, Qt desktop, portable ZIP, installer EXE, checksums |
+| Windows | arm64 | roadmap | KDF, Qt desktop, portable ZIP, installer EXE, checksums |
+| KDF | wasm | experimental path exists | wasm KDF artifact, checksums |
+
+Recommended landing order:
+
+1. Linux x86_64 CI green
+2. Windows x86_64 KDF CI green
+3. macOS Intel CI green
+4. KDF wasm CI added
+5. Windows x86_64 desktop packaging
+6. macOS arm64 polish
+7. Windows ARM64 KDF
+8. Windows ARM64 desktop packaging
+9. signing / reproducibility / manifests
 
 ---
 
