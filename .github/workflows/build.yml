@@ -24,6 +24,19 @@ on:
       - 'env.sample'
       - '.dockerignore'
   workflow_dispatch:
+    inputs:
+      linux:
+        description: Run Linux build
+        type: boolean
+        default: true
+      macos:
+        description: Run macOS Intel build
+        type: boolean
+        default: false
+      windows:
+        description: Run Windows KDF build
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -39,6 +52,7 @@ env:
 
 jobs:
   ubuntu-release:
+    if: github.event_name != 'workflow_dispatch' || inputs.linux
     name: Ubuntu Release
     runs-on: ubuntu-24.04
     timeout-minutes: 180
@@ -78,6 +92,7 @@ jobs:
           if-no-files-found: warn
 
   macos-intel-release:
+    if: github.event_name != 'workflow_dispatch' || inputs.macos
     name: macOS Intel Release
     runs-on: macos-15-intel
     timeout-minutes: 240
@@ -114,6 +129,7 @@ jobs:
           if-no-files-found: warn
 
   windows-kdf-release:
+    if: github.event_name != 'workflow_dispatch' || inputs.windows
     name: Windows KDF Release
     runs-on: windows-2022
     timeout-minutes: 120
