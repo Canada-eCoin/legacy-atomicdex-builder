@@ -190,7 +190,12 @@ if [ "$MODE" = "docker" ]; then
         LOGFILE="${LOG}/wasm-build.log"
         echo ""
         echo "=== KDF → WebAssembly ==="
-        DOCKER_BUILDKIT=1 docker build --progress=plain \
+        CACHE_FLAGS=()
+        if [ "${GITHUB_ACTIONS:-}" = "true" ]; then
+            CACHE_FLAGS=(--cache-from type=gha --cache-to type=gha,mode=max)
+        fi
+        docker buildx build --progress=plain \
+            "${CACHE_FLAGS[@]}" \
             --build-arg "PLATFORM=${PLATFORM}" \
             -f src/Dockerfile.kdf-wasm \
             -o "$OUT" \
@@ -212,7 +217,12 @@ if [ "$MODE" = "docker" ]; then
     LOGFILE="${LOG}/build.log"
     echo ""
     echo "=== Docker build --target ${DOCKER_TARGET} ==="
-    DOCKER_BUILDKIT=1 docker build --progress=plain \
+    CACHE_FLAGS=()
+    if [ "${GITHUB_ACTIONS:-}" = "true" ]; then
+        CACHE_FLAGS=(--cache-from type=gha --cache-to type=gha,mode=max)
+    fi
+    docker buildx build --progress=plain \
+        "${CACHE_FLAGS[@]}" \
         --build-arg "PLATFORM=${PLATFORM}" \
         --target "$DOCKER_TARGET" \
         -f src/Dockerfile \

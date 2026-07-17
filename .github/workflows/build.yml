@@ -22,6 +22,7 @@ on:
 
 permissions:
   contents: read
+  actions: write
 
 concurrency:
   group: atomicdex-builder-${{ github.workflow }}-${{ github.ref }}

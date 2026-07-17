@@ -262,10 +262,12 @@ Notes:
 
 ### Current cache posture
 
-- **Linux Docker builds:** the Dockerfile already uses BuildKit cache mounts for
+- **Linux Docker builds:** the Dockerfile uses BuildKit cache mounts for
   Cargo, KDF target output, desktop build output, and vcpkg installed state.
-- **GitHub Actions workflow cache:** still early. We are not yet using explicit
-  cross-run `actions/cache` or Buildx `cache-to` / `cache-from` wiring.
+- **GitHub Actions cross-run cache:** wired via `docker buildx build` with
+  `--cache-from type=gha --cache-to type=gha,mode=max`. Heavy layers (Cargo
+  registry, KDF target dir, apt packages) persist across runs when upstream
+  sources haven't changed.
 - **macOS / Windows hosted runners:** currently mostly cold-start each run.
 
 ### Target roadmap
