@@ -137,7 +137,7 @@ jobs:
           python-version: '3.11'
 
       - name: Install MSVC environment
-        uses: ilammy/msvc-dev-cmd@v2
+        uses: ilammy/msvc-dev-cmd@v1
 
       - name: Install Qt 5.15.2
         uses: jurplel/install-qt-action@v4
