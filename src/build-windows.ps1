@@ -823,7 +823,8 @@ function Build-Desktop {
         OK "Portable ZIP -> $zipFile"
 
         Info "Building installer via Qt IFW..."
-        $binarycreator = Get-ChildItem -Path (Join-Path $qtDir "Tools\QtInstallerFramework") -Filter "binarycreator.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+    try {
+        $binarycreator = Get-ChildItem -Path (Join-Path "C:\Qt" "Tools\QtInstallerFramework") -Filter "binarycreator.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
         if ($binarycreator) {
             $pkgDir = Join-Path $desktopDir "ci_tools_atomic_dex\packages"
             $configXml = Join-Path $desktopDir "ci_tools_atomic_dex\config\config.xml"
@@ -837,6 +838,9 @@ function Build-Desktop {
         } else {
             Warn "Qt IFW binarycreator not found — skipping installer"
         }
+    } catch {
+        Warn "IFW installer failed (non-fatal): $_"
+    }
     } else {
         Warn "bundled/windows not found — build may have failed silently"
     }
