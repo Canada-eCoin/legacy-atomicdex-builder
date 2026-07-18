@@ -716,24 +716,44 @@ function Build-Desktop {
     OK "KDF staged at assets\tools\kdf\"
 
     # Install Qt 5.15.2 via aqtinstall
-    Step "7/9" "Installing Qt 5.15.2 + WebEngine..."
-    $qtDir = "C:\Qt"
-    $qtVersion = "5.15.2"
-    $qtArch = "win64_msvc2019_64"
-    $qtFullPath = Join-Path $qtDir $qtVersion
-    $qtCmakePath = Join-Path $qtFullPath "$qtArch\lib\cmake"
+    Step "7/9" "Resolving Qt 5.15.2 + WebEngine..."
+    $qtRoot = $null
 
-    if (-not (Test-Path (Join-Path $qtCmakePath "Qt5\Qt5Config.cmake"))) {
-        Info "Downloading Qt $qtVersion via aqtinstall (~3GB, one-time)..."
-        pip install aqtinstall 2>&1 | Out-Null
-        aqt install-qt windows desktop $qtVersion $qtArch -O $qtDir 2>&1 | ForEach-Object { Info $_ }
-        aqt install-tool windows desktop tools_ifw 2>&1 | ForEach-Object { Info $_ }
-        OK "Qt $qtVersion + IFW installed"
-    } else {
-        OK "Qt $qtVersion already cached at $qtFullPath"
+    # 1. Check jurplel/install-qt-action result (CI)
+    if ($env:Qt5_DIR) {
+        $qt5DirClean = $env:Qt5_DIR.TrimEnd('\').TrimEnd('/')
+        $qtRoot = Split-Path -Parent (Split-Path -Parent $qt5DirClean)
+        if (Test-Path (Join-Path $qt5DirClean "Qt5\Qt5Config.cmake")) {
+            OK "Qt5 from Qt5_DIR env: $qtRoot"
+        }
     }
 
-    # Build libwally-core
+    # 2. Check common install paths
+    if (-not $qtRoot) {
+        $qtCandidates = @(
+            "C:\Qt\5.15.2\msvc2019_64",
+            "C:\Qt\5.15.2\win64_msvc2019_64"
+        )
+        foreach ($candidate in $qtCandidates) {
+            if (Test-Path (Join-Path $candidate "lib\cmake\Qt5\Qt5Config.cmake")) {
+                $qtRoot = $candidate
+                OK "Qt5 found at $qtRoot"
+                break
+            }
+        }
+    }
+
+    # 3. Fallback: install via aqtinstall
+    if (-not $qtRoot) {
+        Info "Qt not found, downloading via aqtinstall (~3GB one-time)..."
+        pip install aqtinstall 2>&1 | Out-Null
+        aqt install-qt windows desktop 5.15.2 win64_msvc2019_64 -O "C:\Qt" 2>&1 | ForEach-Object { Info $_ }
+        aqt install-tool windows desktop tools_ifw 2>&1 | ForEach-Object { Info $_ }
+        $qtRoot = "C:\Qt\5.15.2\win64_msvc2019_64"
+        OK "Qt 5.15.2 installed at $qtRoot"
+    }
+
+# Build libwally-core
     Step "8/9" "Building libwally-core..."
     $libwallyDir = Join-Path $BuildDir "libwally-core"
     if (-not (Test-Path (Join-Path $libwallyDir ".git"))) {
@@ -767,7 +787,7 @@ function Build-Desktop {
     $env:CXX = "cl"
 
     Info "Configuring CMake..."
-    $qtPrefixPath = Join-Path $qtFullPath "$qtArch\lib\cmake"
+    $qtPrefixPath = Join-Path $qtRoot "lib\cmake"
     $cmakeConfig = cmake -GNinja -DCMAKE_BUILD_TYPE=$buildType -DCMAKE_PREFIX_PATH="$qtPrefixPath" ../.. 2>&1
     if ($LASTEXITCODE -ne 0) { Pop-Location; Fail "CMake configure failed"; $cmakeConfig | ForEach-Object { Write-Host "  $_" -ForegroundColor Red }; exit 1 }
     OK "CMake configured"
@@ -783,7 +803,7 @@ function Build-Desktop {
 
     # Windeployqt + packaging
     $bundledDir = Join-Path $desktopDir "bundled\windows"
-    $qtBin = Join-Path $qtFullPath "$qtArch\bin"
+    $qtBin = Join-Path $qtRoot "bin"
     if (Test-Path $bundledDir) {
         Info "Running windeployqt..."
         $deployExe = Join-Path $qtBin "windeployqt.exe"

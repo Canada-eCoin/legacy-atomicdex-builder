@@ -132,6 +132,18 @@ jobs:
       - name: Install MSVC environment
         uses: ilammy/msvc-dev-cmd@v1
 
+      - name: Install Qt 5.15.2
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: '5.15.2'
+          host: 'windows'
+          target: 'desktop'
+          arch: 'win64_msvc2019_64'
+          dir: 'C:\'
+          modules: 'qtcharts qtwebengine'
+          tools: 'tools_ifw'
+          cache: true
+
       - name: Install protobuf + ninja
         shell: powershell
         run: |
