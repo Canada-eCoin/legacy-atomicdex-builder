@@ -244,6 +244,11 @@ jobs:
     permissions:
       contents: write
     steps:
+      - name: Checkout for config
+        uses: actions/checkout@v5
+        with:
+          sparse-checkout: config/sources.json
+
       - name: Download all artifacts
         uses: actions/download-artifact@v6
         with:
@@ -264,9 +269,6 @@ jobs:
           done
           echo '=== Release assets ==='
           ls -lah release/
-
-      - name: Checkout for provenance
-        uses: actions/checkout@v5
 
       - name: Generate release body
         run: |
