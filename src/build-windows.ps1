@@ -62,8 +62,10 @@ if ($Help) {
 
 # ── Globals ──────────────────────────────────────────────────
 
-# Reload PATH from registry so winget/choco installs are visible
-$env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+# Reload PATH from registry (skip in CI where toolchain actions manage PATH)
+if (-not $env:GITHUB_ACTIONS) {
+    $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+}
 
 $ScriptDir    = Split-Path -Parent $PSCommandPath
 $ProjectDir   = Split-Path -Parent $ScriptDir
@@ -429,7 +431,7 @@ function Install-MissingDeps {
 # ═══════════════════════════════════════════════════════════════
 
 function Build-Kdf {
-    Step "3/5" "Cloning KDF source (pinned commit $KdfCommit)..."
+    Step "3/9" "Cloning KDF source (pinned commit $KdfCommit)..."
     $kdfDir = Join-Path $BuildDir "kdf"
 
     git config --global core.longpaths true 2>&1 | Out-Null
@@ -551,7 +553,7 @@ function Build-Kdf {
     OK "KDF at commit: $currentCommit"
     Log "KDF source at $currentCommit"
 
-    Step "4/5" "Building KDF engine (Rust, ~10 min on $BuildCpus CPUs)..."
+    Step "4/9" "Building KDF engine (Rust, ~10 min on $BuildCpus CPUs)..."
 
     Push-Location $kdfDir
 
@@ -672,44 +674,149 @@ function Build-Kdf {
 # ═══════════════════════════════════════════════════════════════
 
 function Build-Desktop {
-    Step "5/5" "Desktop wallet — native Windows build guidance"
+    Step "5/9" "Cloning desktop wallet (pinned commit $DesktopCommit)..."
 
-    Write-Host ""
-    Write-Host "╔══════════════════════════════════════════════════════════╗" -ForegroundColor Yellow
-    Write-Host "║  Desktop wallet on Windows needs manual setup.          ║" -ForegroundColor Yellow
-    Write-Host "║  QT5 + WebEngine requires MSVC and cannot be fully      ║" -ForegroundColor Yellow
-    Write-Host "║  automated in a script. See README.md for steps.    ║" -ForegroundColor Yellow
-    Write-Host "╚══════════════════════════════════════════════════════════╝" -ForegroundColor Yellow
-    Write-Host ""
+    $desktopDir = Join-Path $BuildDir "desktop"
+    $cloneArgs = @('-c', 'core.longpaths=true')
+    if ($authUrl) { $cloneArgs += '-c'; $cloneArgs += "url.$authUrl.insteadOf=https://github.com/" }
+    $cloneArgs += 'clone'; $cloneArgs += '--progress'; $cloneArgs += '--no-checkout'
+    $cloneArgs += $DesktopRepo; $cloneArgs += $desktopDir
 
-    Write-Host "  Prerequisites:" -ForegroundColor White
-    Write-Host "    1. Visual Studio 2022 with 'Desktop development with C++' (~6GB)" -ForegroundColor Gray
-    Write-Host "    2. QT 5.15.2 for MSVC 2019/2022 (~3GB)" -ForegroundColor Gray
-    Write-Host "       Download: https://download.qt.io/archive/qt/5.15/5.15.2/" -ForegroundColor Gray
-    Write-Host "    3. CMake 4.3+ (in PATH)" -ForegroundColor Gray
-    Write-Host "    4. OpenSSL for Windows" -ForegroundColor Gray
-    Write-Host ""
+    if (Test-Path (Join-Path $desktopDir ".git")) {
+        Push-Location $desktopDir
+        if ($authUrl) { git config url."$authUrl".insteadOf https://github.com/ 2>&1 | Out-Null }
+        $fr = Invoke-GitLogged -Arguments @('-c', 'core.longpaths=true', 'fetch', 'origin') -StepLabel 'desktop-fetch'
+        if ($fr.ExitCode -ne 0) { Pop-Location; Fail "Desktop fetch failed"; exit 1 }
+        $cr = Invoke-GitLogged -Arguments @('checkout', $DesktopCommit) -StepLabel 'desktop-checkout'
+        if ($cr.ExitCode -ne 0) { Pop-Location; Fail "Desktop checkout failed"; exit 1 }
+        $sr = Invoke-GitLogged -Arguments @('submodule', 'update', '--init', '--recursive') -StepLabel 'desktop-submodules'
+        if ($sr.ExitCode -ne 0) { Pop-Location; Fail "Desktop submodule update failed"; exit 1 }
+        Pop-Location
+        OK "Desktop source updated"
+    } else {
+        Remove-Item -Recurse -Force $desktopDir -ErrorAction SilentlyContinue
+        $cr = Invoke-GitLogged -Arguments $cloneArgs -StepLabel 'desktop-clone'
+        if ($cr.ExitCode -ne 0) { Fail "Desktop clone failed"; exit 1 }
+        Push-Location $desktopDir
+        if ($authUrl) { git config url."$authUrl".insteadOf https://github.com/ 2>&1 | Out-Null }
+        $cor = Invoke-GitLogged -Arguments @('checkout', $DesktopCommit) -StepLabel 'desktop-checkout'
+        if ($cor.ExitCode -ne 0) { Pop-Location; Fail "Desktop checkout failed"; exit 1 }
+        $sr = Invoke-GitLogged -Arguments @('submodule', 'update', '--init', '--recursive') -StepLabel 'desktop-submodules'
+        if ($sr.ExitCode -ne 0) { Pop-Location; Fail "Desktop submodule update failed"; exit 1 }
+        Pop-Location
+        OK "Desktop source cloned"
+    }
 
-    Write-Host "  Build steps:" -ForegroundColor White
-    Write-Host "    git clone $DesktopRepo" -ForegroundColor Gray
-    Write-Host "    cd komodo-wallet-desktop" -ForegroundColor Gray
-    Write-Host "    git checkout $DesktopCommit" -ForegroundColor Gray
-    Write-Host "    git submodule update --init --recursive" -ForegroundColor Gray
-    Write-Host "" -ForegroundColor Gray
-    Write-Host "    # Copy KDF (pre-built):" -ForegroundColor Gray
-    Write-Host "    copy ..\output\windows\kdf.exe assets\tools\kdf\kdf.exe" -ForegroundColor Gray
-    Write-Host "" -ForegroundColor Gray
-    Write-Host "    # Edit CMakeLists.txt to use local KDF (same sed commands as Linux)" -ForegroundColor Gray
-    Write-Host "    # Set up vcpkg (see ci_tools_atomic_dex/vcpkg-repo/)" -ForegroundColor Gray
-    Write-Host "    # cmake -GNinja -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH=C:\Qt\5.15.2\msvc2019_64 .." -ForegroundColor Gray
-    Write-Host "    # cmake --build . --config Release -j N" -ForegroundColor Gray
-    Write-Host ""
+    # Copy KDF into desktop tree
+    Step "6/9" "Copying KDF engine into desktop wallet..."
+    $kdfDest = Join-Path $desktopDir "assets\tools\kdf"
+    New-Item -ItemType Directory -Force -Path $kdfDest | Out-Null
+    Copy-Item (Join-Path $OutputDir "kdf.exe") (Join-Path $kdfDest "kdf.exe") -Force
+    OK "KDF staged at assets\tools\kdf\"
 
-    Warn "Desktop wallet on Windows is a manual process."
-    Warn "For automated CI: use the Linux AppImage build (cross-platform distribution)."
+    # Install Qt 5.15.2 via aqtinstall
+    Step "7/9" "Installing Qt 5.15.2 + WebEngine..."
+    $qtDir = "C:\Qt"
+    $qtVersion = "5.15.2"
+    $qtArch = "win64_msvc2019_64"
+    $qtFullPath = Join-Path $qtDir $qtVersion
+    $qtCmakePath = Join-Path $qtFullPath "$qtArch\lib\cmake"
 
-    Log "Desktop build — manual guidance displayed"
+    if (-not (Test-Path (Join-Path $qtCmakePath "Qt5\Qt5Config.cmake"))) {
+        Info "Downloading Qt $qtVersion via aqtinstall (~3GB, one-time)..."
+        pip install aqtinstall 2>&1 | Out-Null
+        aqt install-qt windows desktop $qtVersion $qtArch -O $qtDir 2>&1 | ForEach-Object { Info $_ }
+        aqt install-tool windows desktop tools_ifw 2>&1 | ForEach-Object { Info $_ }
+        OK "Qt $qtVersion + IFW installed"
+    } else {
+        OK "Qt $qtVersion already cached at $qtFullPath"
+    }
+
+    # Build libwally-core
+    Step "8/9" "Building libwally-core..."
+    $libwallyDir = Join-Path $BuildDir "libwally-core"
+    if (-not (Test-Path (Join-Path $libwallyDir ".git"))) {
+        Remove-Item -Recurse -Force $libwallyDir -ErrorAction SilentlyContinue
+        $lwc = Invoke-GitLogged -Arguments @('clone', '--recurse-submodules', '-b', 'release_0.9.2', 'https://github.com/ElementsProject/libwally-core', $libwallyDir) -StepLabel 'libwally-clone'
+        if ($lwc.ExitCode -ne 0) { Fail "libwally clone failed"; exit 1 }
+    }
+    Push-Location $libwallyDir
+    $env:LIBWALLY_DIR = $libwallyDir.Replace('\', '/')
+    cmd /c "$env:LIBWALLY_DIR\tools\msvc\gen_ecmult_static_context.bat" 2>&1 | Out-Null
+    Copy-Item "src\ccan\ccan\str\hex\hex.c" "src\ccan\ccan\str\hex\hex_.c" -Force
+    Copy-Item "src\ccan\ccan\base64\base64.c" "src\ccan\ccan\base64\base64_.c" -Force
+    Copy-Item "src\amalgamation\windows_config\libsecp256k1-config.h" "src\secp256k1\src\libsecp256k1-config.h" -Force
+    $lwBuild = cl /utf-8 /DUSE_ECMULT_STATIC_PRECOMPUTATION /DECMULT_WINDOW_SIZE=15 /DWALLY_CORE_BUILD /DHAVE_CONFIG_H /DSECP256K1_BUILD /I"$env:LIBWALLY_DIR\src\amalgamation\windows_config" /I"$env:LIBWALLY_DIR" /I"$env:LIBWALLY_DIR\src" /I"$env:LIBWALLY_DIR\include" /I"$env:LIBWALLY_DIR\src\ccan" /I"$env:LIBWALLY_DIR\src\ccan\base64" /I"$env:LIBWALLY_DIR\src\secp256k1" /Zi /LD src\aes.c src\anti_exfil.c src\base58.c src\base64.c src\bech32.c src\bip32.c src\bip38.c src\bip39.c src\bip85.c src\blech32.c src\coins.c src\descriptor.c src\ecdh.c src\elements.c src\hex.c src\hmac.c src\internal.c src\mnemonic.c src\pbkdf2.c src\map.c src\address.c src\pullpush.c src\psbt.c src\script.c src\scrypt.c src\sign.c src\symmetric.c src\transaction.c src\wif.c src\wordlist.c src\ccan\ccan\crypto\ripemd160\ripemd160.c src\ccan\ccan\crypto\sha256\sha256.c src\ccan\ccan\crypto\sha512\sha512.c src\ccan\ccan\base64\base64_.c src\ccan\ccan\str\hex\hex_.c src\secp256k1\src\secp256k1.c src\secp256k1\src\precomputed_ecmult_gen.c src\secp256k1\src\precomputed_ecmult.c /Fewally.dll 2>&1
+    if ($LASTEXITCODE -ne 0) { Pop-Location; Fail "libwally build failed"; $lwBuild | ForEach-Object { Write-Host "  $_" -ForegroundColor Red }; exit 1 }
+    OK "libwally built"
+    Pop-Location
+
+    # CMake configure + build
+    Step "9/9" "Building desktop wallet with CMake + Ninja..."
+    $buildType = "Release"
+    $buildDir = Join-Path $desktopDir "ci_tools_atomic_dex\build-$buildType"
+    New-Item -ItemType Directory -Force -Path $buildDir | Out-Null
+
+    Push-Location $buildDir
+    $env:QT_INSTALL_CMAKE_PATH = Join-Path $qtFullPath "$qtArch\lib\cmake"
+    $env:QT_ROOT = Join-Path $qtFullPath $qtArch
+    $env:CMAKE_BUILD_TYPE = $buildType
+    $env:VCPKG_BUILD_TYPE = "release"
+    $env:CC = "cl"
+    $env:CXX = "cl"
+
+    Info "Configuring CMake..."
+    $cmakeConfig = cmake -GNinja -DCMAKE_BUILD_TYPE=$buildType ../.. 2>&1
+    if ($LASTEXITCODE -ne 0) { Pop-Location; Fail "CMake configure failed"; $cmakeConfig | ForEach-Object { Write-Host "  $_" -ForegroundColor Red }; exit 1 }
+    OK "CMake configured"
+
+    Info "Building (ninja, ~20-30 min)..."
+    $ninjaBuild = cmake --build . --config $buildType 2>&1
+    if ($LASTEXITCODE -ne 0) { Pop-Location; Fail "Desktop build failed"; $ninjaBuild | ForEach-Object { Write-Host "  $_" -ForegroundColor Red }; exit 1 }
+    OK "Desktop wallet compiled"
+
+    Info "Running ninja install..."
+    ninja install 2>&1 | Out-Null
+    OK "Desktop installed to bundled/windows/"
+
+    # Windeployqt + packaging
+    $bundledDir = Join-Path $desktopDir "bundled\windows"
+    $qtBin = Join-Path $qtFullPath "$qtArch\bin"
+    if (Test-Path $bundledDir) {
+        Info "Running windeployqt..."
+        $deployExe = Join-Path $qtBin "windeployqt.exe"
+        $exeToDeploy = Get-ChildItem -Path $bundledDir -Filter "*.exe" -Recurse | Select-Object -First 1
+        if ((Test-Path $deployExe) -and $exeToDeploy) {
+            & $deployExe $exeToDeploy.FullName --no-translations 2>&1 | Out-Null
+            OK "windeployqt complete"
+        }
+
+        $zipFile = Join-Path $OutputDir "atomicdex-portable.zip"
+        Info "Creating portable ZIP..."
+        Compress-Archive -Path "$bundledDir\*" -DestinationPath $zipFile -Force
+        OK "Portable ZIP -> $zipFile"
+
+        Info "Building installer via Qt IFW..."
+        $binarycreator = Get-ChildItem -Path (Join-Path $qtDir "Tools\QtInstallerFramework") -Filter "binarycreator.exe" -Recurse -ErrorAction SilentlyContinue | Select-Object -First 1
+        if ($binarycreator) {
+            $pkgDir = Join-Path $desktopDir "ci_tools_atomic_dex\packages"
+            $configXml = Join-Path $desktopDir "ci_tools_atomic_dex\config\config.xml"
+            if ((Test-Path $pkgDir) -and (Test-Path $configXml)) {
+                $installerFile = Join-Path $OutputDir "atomicdex-installer.exe"
+                & $binarycreator.FullName -c $configXml -p $pkgDir $installerFile 2>&1 | Out-Null
+                OK "Installer EXE -> $installerFile"
+            } else {
+                Warn "IFW config not found at $pkgDir / $configXml — skipping installer"
+            }
+        } else {
+            Warn "Qt IFW binarycreator not found — skipping installer"
+        }
+    } else {
+        Warn "bundled/windows not found — build may have failed silently"
+    }
+    Pop-Location
 }
+
 
 # ═══════════════════════════════════════════════════════════════
 # Main
@@ -724,10 +831,10 @@ function Main {
     Write-Host "  CPUs: $BuildCpus  |  KDF: $KdfCommit  |  Desktop: $DesktopCommit" -ForegroundColor Gray
     Write-Host ""
 
-    Step "1/5" "Detecting platform..."
+    Step "1/9" "Detecting platform..."
     Detect-Platform
 
-    Step "2/5" "Checking dependencies..."
+    Step "2/9" "Checking dependencies..."
     $missing = Check-Deps
 
     if ($InstallDeps) {

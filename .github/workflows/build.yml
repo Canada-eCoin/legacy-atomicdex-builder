@@ -111,11 +111,11 @@ jobs:
           retention-days: 30
           if-no-files-found: warn
 
-  windows-kdf-release:
+  windows-release:
     if: inputs.windows
-    name: Windows KDF Release
+    name: Windows Release
     runs-on: windows-2022
-    timeout-minutes: 120
+    timeout-minutes: 300
     steps:
       - uses: actions/checkout@v5
 
@@ -124,15 +124,23 @@ jobs:
         with:
           targets: x86_64-pc-windows-msvc
 
-      - name: Install protobuf
-        shell: powershell
-        run: choco install protoc -y
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
 
-      - name: Build KDF
+      - name: Install MSVC environment
+        uses: ilammy/msvc-dev-cmd@v1
+
+      - name: Install protobuf + ninja
+        shell: powershell
+        run: choco install protoc ninja -y
+
+      - name: Build KDF + Desktop
         shell: powershell
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: .\src\build-windows.ps1 -KdfOnly -Yes
+        run: .\src\build-windows.ps1 -Yes
 
       - name: Show Windows outputs
         if: always()
@@ -144,10 +152,10 @@ jobs:
           Write-Host '== logs/windows =='
           if (Test-Path 'logs/windows') { Get-ChildItem 'logs/windows' }
 
-      - name: Upload Windows output
+      - name: Upload Windows output (all artifacts)
         uses: actions/upload-artifact@v7
         with:
-          name: atomicdex-windows-kdf-output
+          name: atomicdex-windows-output
           path: output/windows/
           retention-days: 30
           if-no-files-found: error
@@ -156,7 +164,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: atomicdex-windows-kdf-logs
+          name: atomicdex-windows-logs
           path: logs/windows/
           retention-days: 30
           if-no-files-found: warn
