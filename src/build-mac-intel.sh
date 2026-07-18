@@ -754,6 +754,25 @@ build_desktop() {
         rm -rf "$OUTPUT_DIR/$(basename "$app_found")"
         cp -R "$app_found" "$OUTPUT_DIR/"
         ok "App bundle → $OUTPUT_DIR/$(basename "$app_found")"
+
+        # Run macdeployqt to bundle Qt frameworks into the .app
+        local macdeployqt_bin="$QT_ROOT_RESOLVED/clang_64/bin/macdeployqt"
+        if [ -x "$macdeployqt_bin" ]; then
+            step "6f" "Bundling Qt frameworks (macdeployqt)"
+            "$macdeployqt_bin" "$OUTPUT_DIR/$(basename "$app_found")" -qmldir="$desktop_dir/src/qml" -no-strip 2>&1 | sed 's/^/    /' || warn "macdeployqt had warnings"
+            ok "Qt frameworks bundled"
+        else
+            warn "macdeployqt not found at $macdeployqt_bin — skipping framework bundling"
+        fi
+
+        # Create DMG
+        local app_name="$(basename "$app_found" .app)"
+        local dmg_path="$OUTPUT_DIR/${app_name}.dmg"
+        step "6g" "Creating DMG"
+        hdiutil create -volname "${APP_NAME:-Komodo Wallet}" \
+            -srcfolder "$OUTPUT_DIR/$(basename "$app_found")" \
+            -ov -format UDZO "$dmg_path" 2>&1 | sed 's/^/    /'
+        ok "DMG → $dmg_path"
     fi
 
     if [ -n "$dmg_found" ]; then
