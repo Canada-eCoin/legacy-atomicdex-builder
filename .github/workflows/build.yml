@@ -12,13 +12,16 @@ on:
         type: boolean
         default: true
       windows:
-        description: Run Windows KDF build
+        description: Run Windows build
         type: boolean
         default: true
       wasm:
         description: Run KDF WebAssembly build
         type: boolean
         default: true
+  push:
+    tags:
+      - 'v*'
 
 permissions:
   contents: read
@@ -35,7 +38,7 @@ env:
 
 jobs:
   ubuntu-release:
-    if: inputs.linux
+    if: github.event_name != 'workflow_dispatch' || inputs.linux
     name: Ubuntu Release
     runs-on: ubuntu-24.04
     timeout-minutes: 180
@@ -75,7 +78,7 @@ jobs:
           if-no-files-found: warn
 
   macos-intel-release:
-    if: inputs.macos
+    if: github.event_name != 'workflow_dispatch' || inputs.macos
     name: macOS Intel Release
     runs-on: macos-15-intel
     timeout-minutes: 240
@@ -112,7 +115,7 @@ jobs:
           if-no-files-found: warn
 
   windows-release:
-    if: inputs.windows
+    if: github.event_name != 'workflow_dispatch' || inputs.windows
     name: Windows Release
     runs-on: windows-2022
     timeout-minutes: 300
@@ -184,7 +187,7 @@ jobs:
           if-no-files-found: warn
 
   wasm-kdf-release:
-    if: inputs.wasm
+    if: github.event_name != 'workflow_dispatch' || inputs.wasm
     name: KDF WebAssembly
     runs-on: ubuntu-24.04
     timeout-minutes: 120
@@ -222,3 +225,40 @@ jobs:
           path: logs/wasm/
           retention-days: 30
           if-no-files-found: warn
+
+  release:
+    name: Create GitHub Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs:
+      - ubuntu-release
+      - windows-release
+      - macos-intel-release
+      - wasm-kdf-release
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v5
+        with:
+          path: artifacts
+          pattern: atomicdex-*-output
+
+      - name: Flatten and checksum
+        run: |
+          mkdir -p release
+          find artifacts -type f | while read f; do
+            base="$(basename "$f")"
+            cp "$f" "release/$base"
+            sha256sum "$f" | sed "s|$f|$base|" > "release/$base.sha256"
+          done
+          echo '=== Release assets ==='
+          ls -lah release/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/*
+          tag_name: ${{ github.ref_name }}
+          generate_release_notes: true
+          fail_on_unmatched_files: true
