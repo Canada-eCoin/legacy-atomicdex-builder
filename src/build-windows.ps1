@@ -46,6 +46,12 @@ param(
 # BUILD_YES=1 is equivalent to -Yes flag
 if ($env:BUILD_YES -eq "1") { $Yes = $true }
 
+# GitHub Actions PowerShell sets ErrorActionPreference=Stop, which
+# treats ANY native-command stderr as a terminating error. Cargo and
+# rustup write progress to stderr even on success. Force Continue so
+# we can check $LASTEXITCODE ourselves.
+$ErrorActionPreference = "Continue"
+
 # ── Help ─────────────────────────────────────────────────────
 if ($Help) {
     Get-Content $PSCommandPath | Select-Object -First 30 | ForEach-Object {
