@@ -277,15 +277,25 @@ jobs:
           echo "" >> release-body.md
           echo "### Upstream Sources" >> release-body.md
           echo "" >> release-body.md
-          echo "| Component | Repository | Commit |" >> release-body.md
+          echo "| Component | Source | Pinned |" >> release-body.md
           echo "|---|---|---|" >> release-body.md
           KDF_REPO=$(jq -r '.kdf.repo' config/sources.json)
           KDF_COMMIT=$(jq -r '.kdf.commit' config/sources.json)
           DESKTOP_REPO=$(jq -r '.desktop.repo' config/sources.json)
           DESKTOP_BRANCH=$(jq -r '.desktop.branch' config/sources.json)
           DESKTOP_COMMIT=$(jq -r '.desktop.commit' config/sources.json)
+          QATERIAL_REPO=$(jq -r '.dependencies.qaterial.repo' config/sources.json)
+          QATERIAL_COMMIT=$(jq -r '.dependencies.qaterial.commit' config/sources.json)
+          COINS_REPO=$(jq -r '.dependencies.coin_configs.repo' config/sources.json)
+          COINS_BRANCH=$(jq -r '.dependencies.coin_configs.branch' config/sources.json)
           echo "| KDF engine | [${KDF_REPO#https://}]($KDF_REPO) | \`$KDF_COMMIT\` |" >> release-body.md
-          echo "| Desktop wallet | [${DESKTOP_REPO#https://} (\`$DESKTOP_BRANCH\`) ]($DESKTOP_REPO) | \`$DESKTOP_COMMIT\` |" >> release-body.md
+          echo "| Desktop wallet | [${DESKTOP_REPO#https://} ($DESKTOP_BRANCH)]($DESKTOP_REPO) | \`$DESKTOP_COMMIT\` |" >> release-body.md
+          echo "| Qaterial | [${QATERIAL_REPO#https://}]($QATERIAL_REPO) | \`$QATERIAL_COMMIT\` |" >> release-body.md
+          echo "| Coin configs | [${COINS_REPO#https://} ($COINS_BRANCH)]($COINS_REPO) | branch \`$COINS_BRANCH\` |" >> release-body.md
+          echo "| libwally-core | [github.com/ElementsProject/libwally-core](https://github.com/ElementsProject/libwally-core) | \`release_0.9.2\` |" >> release-body.md
+          echo "| Qt (win/mac) | [qt.io](https://download.qt.io/archive/qt/5.15/5.15.2/) | \`5.15.2\` |" >> release-body.md
+          echo "| binaryen (WASM) | [github.com/WebAssembly/binaryen](https://github.com/WebAssembly/binaryen) | \`version_120\` |" >> release-body.md
+          echo "| vcpkg | pinned via desktop wallet CMake | [vcpkg.json](https://github.com/cipig/komodo-wallet-desktop/blob/$DESKTOP_COMMIT/vcpkg.json) |" >> release-body.md
           echo "" >> release-body.md
           echo "### Artifacts" >> release-body.md
           echo "" >> release-body.md
