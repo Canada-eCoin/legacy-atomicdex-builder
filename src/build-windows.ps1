@@ -767,7 +767,8 @@ function Build-Desktop {
     $env:CXX = "cl"
 
     Info "Configuring CMake..."
-    $cmakeConfig = cmake -GNinja -DCMAKE_BUILD_TYPE=$buildType ../.. 2>&1
+    $qtPrefixPath = Join-Path $qtFullPath "$qtArch\lib\cmake"
+    $cmakeConfig = cmake -GNinja -DCMAKE_BUILD_TYPE=$buildType -DCMAKE_PREFIX_PATH="$qtPrefixPath" ../.. 2>&1
     if ($LASTEXITCODE -ne 0) { Pop-Location; Fail "CMake configure failed"; $cmakeConfig | ForEach-Object { Write-Host "  $_" -ForegroundColor Red }; exit 1 }
     OK "CMake configured"
 
