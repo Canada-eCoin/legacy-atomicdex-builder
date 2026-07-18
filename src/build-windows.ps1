@@ -561,14 +561,20 @@ function Build-Kdf {
         Warn "No MSVC detected — using MinGW target: $rustTarget"
     }
 
-    # Ensure target
+    # Ensure target (run via cmd to avoid PS error-action issues)
     Write-Host "    → rustup target add $rustTarget"
-    $installedTargets = rustup target list --installed 2>&1
+    $prevEAP = $ErrorActionPreference
+    $ErrorActionPreference = "Continue"
+    $installedTargets = cmd /c "rustup target list --installed 2>&1"
+    $ErrorActionPreference = $prevEAP
     if ($installedTargets -match [regex]::Escape($rustTarget)) {
         Write-Host "    → target already installed, skipping"
     } else {
         Write-Host "    → installing target..."
-        $rustupOutput = rustup target add $rustTarget 2>&1
+        $prevEAP2 = $ErrorActionPreference
+        $ErrorActionPreference = "Continue"
+        $rustupOutput = cmd /c "rustup target add $rustTarget 2>&1"
+        $ErrorActionPreference = $prevEAP2
         if ($LASTEXITCODE -ne 0) {
             Write-Host "    ✗ rustup target add failed (exit $LASTEXITCODE):"
             $rustupOutput | ForEach-Object { Write-Host "      $_" }
