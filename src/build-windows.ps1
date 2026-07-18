@@ -755,7 +755,8 @@ function Build-Desktop {
 
 # Build libwally-core
     Step "8/9" "Building libwally-core..."
-    $libwallyDir = Join-Path $BuildDir "libwally-core"
+    # Build libwally inside desktop dir (cmake expects it there)
+    $libwallyDir = Join-Path $desktopDir "libwally-core"
     if (-not (Test-Path (Join-Path $libwallyDir ".git"))) {
         Remove-Item -Recurse -Force $libwallyDir -ErrorAction SilentlyContinue
         $lwc = Invoke-GitLogged -Arguments @('clone', '--recurse-submodules', '-b', 'release_0.9.2', 'https://github.com/ElementsProject/libwally-core', $libwallyDir) -StepLabel 'libwally-clone'
@@ -783,6 +784,7 @@ function Build-Desktop {
     Push-Location $buildDir
     $env:QT_INSTALL_CMAKE_PATH = Join-Path $qtRoot "lib\cmake"
     $env:QT_ROOT = $qtRoot
+    $env:Qt5_DIR = Join-Path $qtRoot "lib\cmake\Qt5"
     $env:CMAKE_BUILD_TYPE = $buildType
     $env:VCPKG_BUILD_TYPE = "release"
     $env:CC = "cl"
