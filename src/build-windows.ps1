@@ -930,6 +930,7 @@ function Main {
     Write-Host ""
 
     Log "BUILD COMPLETE — elapsed: $($elapsed.ToString('mm\:ss'))"
+    exit 0
 }
 
 # ── Entry point ───────────────────────────────────────────────
