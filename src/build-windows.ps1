@@ -776,11 +776,13 @@ function Build-Desktop {
     Step "9/9" "Building desktop wallet with CMake + Ninja..."
     $buildType = "Release"
     $buildDir = Join-Path $desktopDir "ci_tools_atomic_dex\build-$buildType"
+    Write-Host "    buildDir: $buildDir"
+    Write-Host "    desktopDir: $desktopDir"
     New-Item -ItemType Directory -Force -Path $buildDir | Out-Null
 
     Push-Location $buildDir
-    $env:QT_INSTALL_CMAKE_PATH = Join-Path $qtFullPath "$qtArch\lib\cmake"
-    $env:QT_ROOT = Join-Path $qtFullPath $qtArch
+    $env:QT_INSTALL_CMAKE_PATH = Join-Path $qtRoot "lib\cmake"
+    $env:QT_ROOT = $qtRoot
     $env:CMAKE_BUILD_TYPE = $buildType
     $env:VCPKG_BUILD_TYPE = "release"
     $env:CC = "cl"
