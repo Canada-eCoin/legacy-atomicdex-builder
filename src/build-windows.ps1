@@ -676,7 +676,8 @@ function Build-Kdf {
 function Build-Desktop {
     Step "5/9" "Cloning desktop wallet (pinned commit $DesktopCommit)..."
 
-    $desktopDir = Join-Path $BuildDir "desktop"
+    # Use short path in CI to avoid MAX_PATH issues with vcpkg
+    if ($env:GITHUB_ACTIONS) { $desktopDir = "C:\build\desktop" } else { $desktopDir = Join-Path $BuildDir "desktop" }
     $cloneArgs = @('-c', 'core.longpaths=true')
     if ($authUrl) { $cloneArgs += '-c'; $cloneArgs += "url.$authUrl.insteadOf=https://github.com/" }
     $cloneArgs += 'clone'; $cloneArgs += '--progress'; $cloneArgs += '--no-checkout'

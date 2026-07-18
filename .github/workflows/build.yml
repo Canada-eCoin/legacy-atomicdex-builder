@@ -134,7 +134,13 @@ jobs:
 
       - name: Install protobuf + ninja
         shell: powershell
-        run: choco install protoc ninja -y
+        run: |
+          choco install protoc ninja -y
+          refreshenv
+          # Also try scoop as fallback for ninja if choco path doesn't stick
+          if (-not (Get-Command ninja -ErrorAction SilentlyContinue)) {
+            $env:Path = "$env:ProgramData\chocolatey\bin;$env:Path"
+          }
 
       - name: Build KDF + Desktop
         shell: powershell
