@@ -782,7 +782,7 @@ function Build-Desktop {
     New-Item -ItemType Directory -Force -Path $buildDir | Out-Null
 
     Push-Location $buildDir
-    $env:QT_INSTALL_CMAKE_PATH = Join-Path $qtRoot "lib\cmake"
+    $env:QT_INSTALL_CMAKE_PATH = ($qtRoot + "/lib/cmake")
     $env:QT_ROOT = $qtRoot
     $env:Qt5_DIR = Join-Path $qtRoot "lib\cmake\Qt5"
     $env:CMAKE_BUILD_TYPE = $buildType
