@@ -247,7 +247,11 @@ jobs:
       - name: Flatten and checksum
         run: |
           mkdir -p release
-          find artifacts -type f | while read f; do
+          # Collect only top-level artifacts, skip .app internals and zero-byte files
+          find artifacts -type f \
+            ! -path '*komodo-wallet.app/*' \
+            ! -path '*/kdf_kwd' \
+            -size +0c | while read f; do
             base="$(basename "$f")"
             cp "$f" "release/$base"
             sha256sum "$f" | sed "s|$f|$base|" > "release/$base.sha256"
