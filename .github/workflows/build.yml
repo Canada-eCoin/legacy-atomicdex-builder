@@ -136,11 +136,7 @@ jobs:
         shell: powershell
         run: |
           choco install protoc ninja -y
-          refreshenv
-          # Also try scoop as fallback for ninja if choco path doesn't stick
-          if (-not (Get-Command ninja -ErrorAction SilentlyContinue)) {
-            $env:Path = "$env:ProgramData\chocolatey\bin;$env:Path"
-          }
+          "$env:ProgramData\chocolatey\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
       - name: Build KDF + Desktop
         shell: powershell
