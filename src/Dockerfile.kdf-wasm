@@ -18,8 +18,13 @@ ENV DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC
 RUN apt-get update && apt-get install -y \
     git curl wget jq \
     build-essential cmake pkg-config libssl-dev clang \
-    protobuf-compiler binaryen \
+    protobuf-compiler \
     && rm -rf /var/lib/apt/lists/*
+
+# Install newer binaryen (wasm-opt); apt version is too old for KDF WASM features
+RUN curl -L https://github.com/WebAssembly/binaryen/releases/download/version_120/binaryen-version_120-x86_64-linux.tar.gz | tar xz -C /tmp && \
+    cp /tmp/binaryen-version_120/bin/wasm-opt /usr/bin/wasm-opt && \
+    rm -rf /tmp/binaryen-version_120
 
 # ── [1] wasm-pack + WASM target ────────────────────────────
 RUN curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
