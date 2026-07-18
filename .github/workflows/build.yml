@@ -265,10 +265,46 @@ jobs:
           echo '=== Release assets ==='
           ls -lah release/
 
+      - name: Checkout for provenance
+        uses: actions/checkout@v5
+
+      - name: Generate release body
+        run: |
+          echo "## AtomicDEX Legacy — ${{ github.ref_name }}" > release-body.md
+          echo "" >> release-body.md
+          echo "**Built:** $(date -u '+%Y-%m-%d %H:%M UTC')" >> release-body.md
+          echo "**Builder commit:** [${{ github.sha }}](https://github.com/${{ github.repository }}/commit/${{ github.sha }})" >> release-body.md
+          echo "" >> release-body.md
+          echo "### Upstream Sources" >> release-body.md
+          echo "" >> release-body.md
+          echo "| Component | Repository | Commit |" >> release-body.md
+          echo "|---|---|---|" >> release-body.md
+          KDF_REPO=$(jq -r '.kdf.repo' config/sources.json)
+          KDF_COMMIT=$(jq -r '.kdf.commit' config/sources.json)
+          DESKTOP_REPO=$(jq -r '.desktop.repo' config/sources.json)
+          DESKTOP_BRANCH=$(jq -r '.desktop.branch' config/sources.json)
+          DESKTOP_COMMIT=$(jq -r '.desktop.commit' config/sources.json)
+          echo "| KDF engine | [${KDF_REPO#https://}]($KDF_REPO) | \`$KDF_COMMIT\` |" >> release-body.md
+          echo "| Desktop wallet | [${DESKTOP_REPO#https://} (\`$DESKTOP_BRANCH\`) ]($DESKTOP_REPO) | \`$DESKTOP_COMMIT\` |" >> release-body.md
+          echo "" >> release-body.md
+          echo "### Artifacts" >> release-body.md
+          echo "" >> release-body.md
+          echo '| File | Size | SHA256 |' >> release-body.md
+          echo '|---|---|---|' >> release-body.md
+          for f in release/*; do
+            case "$f" in *.sha256) continue ;; esac
+            base="$(basename "$f")"
+            size="$(du -h "$f" | cut -f1)"
+            sha="$(cat "release/$base.sha256" | awk '{print $1}')"
+            echo "| \`$base\` | $size | \`${sha:0:16}…\` |" >> release-body.md
+          done
+          echo "" >> release-body.md
+          cat release-body.md
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
           files: release/*
+          body_path: release-body.md
           tag_name: ${{ github.ref_name }}
-          generate_release_notes: true
           fail_on_unmatched_files: true
