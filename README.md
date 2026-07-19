@@ -140,6 +140,18 @@ chmod +x output/linux/komodo-wallet-desktop-x86_64.AppImage
 ./output/linux/komodo-wallet-desktop-x86_64.AppImage
 ```
 
+### 6. Trigger GitHub Actions builds manually
+
+```bash
+./commands/trigger-ci/command.sh linux
+./commands/trigger-ci/command.sh linux wasm
+./commands/trigger-ci/command.sh all --no-wait
+```
+
+This fires the `build.yml` workflow in `Canada-eCoin/legacy-atomicdex-builder`
+and optionally polls until the run completes. Requires the GitHub CLI (`gh`)
+and authentication with permission to dispatch workflows.
+
 ---
 
 ## Native build scripts

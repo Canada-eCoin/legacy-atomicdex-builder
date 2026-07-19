@@ -1,11 +1,11 @@
 #!/bin/bash
-# ci trigger — fire a manual workflow run and poll until it lands
+# trigger-ci — fire a manual workflow run and poll until it lands
 #
-#   ./commands/ci/trigger.sh linux              # Linux only
-#   ./commands/ci/trigger.sh linux wasm          # Linux + WASM
-#   ./commands/ci/trigger.sh all                 # everything
-#   ./commands/ci/trigger.sh linux --no-wait     # fire and return
-#   ./commands/ci/trigger.sh --ref some-branch linux
+#   ./commands/trigger-ci/command.sh linux           # Linux only
+#   ./commands/trigger-ci/command.sh linux wasm      # Linux + WASM
+#   ./commands/trigger-ci/command.sh all             # everything
+#   ./commands/trigger-ci/command.sh linux --no-wait # fire and return
+#   ./commands/trigger-ci/command.sh --ref some-branch linux
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -31,23 +31,27 @@ while [ "$#" -gt 0 ]; do
             PLATFORMS+=("$1")
             shift
             ;;
+        --help|-h)
+            echo "Usage: ./commands/trigger-ci/command.sh [linux|macos|windows|wasm|all]... [--ref branch] [--no-wait]"
+            exit 0
+            ;;
         *)
             echo "Unknown arg: $1"
-            echo "Usage: ci trigger [linux|macos|windows|wasm|all]... [--ref branch] [--no-wait]"
+            echo "Usage: ./commands/trigger-ci/command.sh [linux|macos|windows|wasm|all]... [--ref branch] [--no-wait]"
             exit 1
             ;;
     esac
 done
 
 if [ "${#PLATFORMS[@]}" -eq 0 ]; then
-    echo "Usage: ci trigger [linux|macos|windows|wasm|all]... [--ref branch] [--no-wait]"
+    echo "Usage: ./commands/trigger-ci/command.sh [linux|macos|windows|wasm|all]... [--ref branch] [--no-wait]"
     echo ""
     echo "Examples:"
-    echo "  ci trigger linux              # Linux only, wait for result"
-    echo "  ci trigger linux wasm          # Linux + WASM, wait"
-    echo "  ci trigger all                 # every platform"
-    echo "  ci trigger linux --no-wait     # fire and forget"
-    echo "  ci trigger --ref feat/wasm linux wasm"
+    echo "  ./commands/trigger-ci/command.sh linux              # Linux only, wait for result"
+    echo "  ./commands/trigger-ci/command.sh linux wasm         # Linux + WASM, wait"
+    echo "  ./commands/trigger-ci/command.sh all                # every platform"
+    echo "  ./commands/trigger-ci/command.sh linux --no-wait    # fire and forget"
+    echo "  ./commands/trigger-ci/command.sh --ref feat/wasm linux wasm"
     exit 1
 fi
 
