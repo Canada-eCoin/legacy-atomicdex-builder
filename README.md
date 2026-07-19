@@ -422,14 +422,14 @@ See `env.sample` for all supported variables and platform-specific settings.
 
 Current pins are in `config/sources.json`.
 
-| Component | Source | Pin |
-| --- | --- | --- |
-| KDF | `KomodoPlatform/komodo-defi-framework` | `30c877c5` |
-| Desktop | `cipig/komodo-wallet-desktop`, branch `nogeo` | `0d333c5` |
-| Coin configs | `cipig/coins`, branch `nogeo` | `6d0db32` |
-| vcpkg baseline | `microsoft/vcpkg` | `36393d1ca008d0086488a9041afac26ed3b8edb9` |
-| Linux KDF builder base | `rust:1.84.0-bookworm` | Debian bookworm |
-| Linux desktop builder base | `ubuntu:22.04` | glibc 2.35 |
+| Component | Source | Kind | Pin |
+| --- | --- | --- | --- |
+| KDF | `KomodoPlatform/komodo-defi-framework` | git commit | `30c877c5` |
+| Desktop | `cipig/komodo-wallet-desktop`, branch `nogeo` | git commit | `0d333c5` |
+| Coin configs | `cipig/coins`, branch `nogeo` | git commit | `6d0db32` |
+| vcpkg baseline | `microsoft/vcpkg` | git commit | `36393d1ca008d0086488a9041afac26ed3b8edb9` |
+| Linux KDF builder base | `docker.io/library/rust` | image tag | `1.84.0-bookworm` |
+| Linux desktop builder base | `docker.io/library/ubuntu` | image tag | `22.04 (glibc 2.35)` |
 
 Environment variables can override these pins for local experiments or CI.
 
