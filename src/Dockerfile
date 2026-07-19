@@ -8,6 +8,11 @@
 #
 # Build args:
 #   PLATFORM=linux|mac|windows   (default: linux)
+#   KDF_BASE_IMAGE               from config/sources.json builder_bases.linux_kdf
+#   DESKTOP_BASE_IMAGE           from config/sources.json builder_bases.linux_desktop
+#
+# Direct docker use should pass the two builder-base args explicitly.
+# The command wrapper reads them from config/sources.json automatically.
 #
 # Layer strategy (top = stable, bottom = volatile):
 #   Each stage's first layers (apt, clone, fetch) cache permanently.
@@ -15,11 +20,13 @@
 #   Cache mounts preserve build artifacts for incremental compilation.
 
 ARG PLATFORM=linux
+ARG KDF_BASE_IMAGE
+ARG DESKTOP_BASE_IMAGE
 
 # ═══════════════════════════════════════════════════════════════
 # Stage: deps-kdf — system deps + KDF source + crate fetch
 # ═══════════════════════════════════════════════════════════════
-FROM rust:1.84.0-bookworm AS deps-kdf
+FROM ${KDF_BASE_IMAGE} AS deps-kdf
 
 ENV DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC
 RUN apt-get update && apt-get install -y \
@@ -65,7 +72,7 @@ RUN --mount=type=cache,target=/builder/.build/kdf/target \
 # ═══════════════════════════════════════════════════════════════
 # Stage: deps-desktop — Qt5 + desktop source + libwally + vcpkg
 # ═══════════════════════════════════════════════════════════════
-FROM ubuntu:22.04 AS deps-desktop
+FROM ${DESKTOP_BASE_IMAGE} AS deps-desktop
 ARG PLATFORM=linux
 
 ENV DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC

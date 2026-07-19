@@ -50,6 +50,16 @@ windows_powershell_runner() {
     fi
 }
 
+read_linux_builder_bases() {
+    local sources_json="${PROJECT_DIR}/config/sources.json"
+    if [ ! -f "$sources_json" ]; then
+        echo "ERROR: Missing config/sources.json" >&2
+        exit 1
+    fi
+    KDF_BASE_IMAGE="${KDF_BASE_IMAGE:-$(jq -r '.builder_bases.linux_kdf.source + ":" + .builder_bases.linux_kdf.tag' "$sources_json")}"
+    DESKTOP_BASE_IMAGE="${DESKTOP_BASE_IMAGE:-$(jq -r '.builder_bases.linux_desktop.source + ":" + .builder_bases.linux_desktop.tag' "$sources_json")}"
+}
+
 # ── Parse args ───────────────────────────────────────────────
 MODE="auto"      # auto | docker | native | clean
 TARGET="all"     # all | kdf | desktop | wasm | clean
@@ -253,9 +263,12 @@ if [ "$MODE" = "docker" ]; then
     if [ "${GITHUB_ACTIONS:-}" = "true" ]; then
         CACHE_FLAGS=(--cache-from type=gha,scope=linux-build --cache-to type=gha,scope=linux-build,mode=max)
     fi
+    read_linux_builder_bases
     docker buildx build --progress=plain \
         "${CACHE_FLAGS[@]}" \
         --build-arg "PLATFORM=${PLATFORM}" \
+        --build-arg "KDF_BASE_IMAGE=${KDF_BASE_IMAGE}" \
+        --build-arg "DESKTOP_BASE_IMAGE=${DESKTOP_BASE_IMAGE}" \
         --target "$DOCKER_TARGET" \
         -f src/Dockerfile \
         -o "$OUT" \

@@ -204,22 +204,30 @@ full walkthrough in [WINDOWS.md](./WINDOWS.md).
 Docker is the clean-room path for Linux artifacts. The Dockerfile lives at
 `src/Dockerfile`, so direct Docker commands must pass `-f src/Dockerfile`.
 macOS and Windows default to their native build scripts in auto mode.
+Builder base images are pinned in `config/sources.json`, so direct Docker use
+should derive and pass them explicitly:
 
 ```bash
+export KDF_BASE_IMAGE="$(jq -r '.builder_bases.linux_kdf.source + ":" + .builder_bases.linux_kdf.tag' config/sources.json)"
+export DESKTOP_BASE_IMAGE="$(jq -r '.builder_bases.linux_desktop.source + ":" + .builder_bases.linux_desktop.tag' config/sources.json)"
+
 # KDF only
-docker build --target kdf \
+docker build --build-arg KDF_BASE_IMAGE="$KDF_BASE_IMAGE" --build-arg DESKTOP_BASE_IMAGE="$DESKTOP_BASE_IMAGE" \
+  --target kdf \
   -f src/Dockerfile \
   -o output/linux \
   .
 
 # Desktop AppImage
-docker build --target desktop \
+docker build --build-arg KDF_BASE_IMAGE="$KDF_BASE_IMAGE" --build-arg DESKTOP_BASE_IMAGE="$DESKTOP_BASE_IMAGE" \
+  --target desktop \
   -f src/Dockerfile \
   -o output/linux \
   .
 
 # Everything
-docker build --target all \
+docker build --build-arg KDF_BASE_IMAGE="$KDF_BASE_IMAGE" --build-arg DESKTOP_BASE_IMAGE="$DESKTOP_BASE_IMAGE" \
+  --target all \
   -f src/Dockerfile \
   -o output/linux \
   .
