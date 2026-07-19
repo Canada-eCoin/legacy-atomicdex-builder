@@ -1,59 +1,68 @@
 # STATUS
 
-_Last updated: 2026-07-17 UTC_
+_Last updated: 2026-07-19 UTC_
 
-This project is in a **very early first release** state.
+All four platforms build and ship in CI. Releases are created
+automatically on version tags (`v*`) with individual artifacts
+and full provenance.
 
-Right now, we have successfully built and tested **Linux**, **macOS Intel/x86_64**, **native macOS arm64 / Apple Silicon**, and **Windows** paths. The native arm64 macOS path works with the QtWebEngine-dependent chart/price widget disabled, because Homebrew `qt@5` does not ship the required QtWebEngine package surface on arm64. WASM and reproducibility still need real-world runs, fixes, and tester feedback.
-
-**Contributions and testers are welcome on all platforms.**
+| Platform | Artifacts |
+|---|---|
+| Linux | KDF + AppImage (~187 MB) |
+| macOS Intel | KDF + DMG (~146 MB) |
+| Windows x86_64 | KDF + portable ZIP (~186 MB) |
+| WASM | mm2_bg.wasm + mm2.js (~32 MB) |
 
 ## Build pathway status
 
 | Pathway | Status | Notes |
 |---|---|---|
 | Linux native | Working / verified | Current known-good path for KDF + desktop AppImage builds. |
-| Linux Docker clean-room | Working on Linux / early | Intended clean-room Linux build path; still needs broader validation. |
-| macOS Intel/x86_64 | Working / tested | Desktop app builds and runs in the Intel/x86_64 build shape, including on Apple Silicon hosts via the Intel path. |
-| macOS arm64 / Apple Silicon | Working / tested with WebEngine disabled | Native arm64 desktop app builds and runs on Mac mini M2. QtWebEngine-dependent chart/price widget is disabled because Homebrew `qt@5` does not provide QtWebEngine on arm64. |
-| Windows native x86_64 | Working / tested for KDF; desktop automation incomplete | KDF builds natively with Rust. Desktop wallet builds with Qt5 + MSVC; full walkthrough in [WINDOWS.md](./WINDOWS.md). CI packaging parity is not finished yet. |
-| Windows native arm64 | Roadmap | Future target. Build and packaging shape should mirror Windows x86_64 once toolchain and CI story are defined. |
-| KDF WebAssembly | CI wired / early | Docker `wasm-pack` build runs in CI; needs broader verification and deterministic output work. |
-| Deterministic / reproducible builds | Not done yet | Reproducibility work is still outstanding. |
+| Linux Docker | Working / verified + cached | CI Docker build with GHA cache backend. |
+| macOS Intel/x86_64 | Working / verified + DMG | Desktop app builds, DMG created via macdeployqt + hdiutil. CI green. |
+| macOS arm64 / Apple Silicon | Working / tested with WebEngine disabled | Native arm64 desktop app builds and runs. QtWebEngine-dependent chart/price widget disabled (Homebrew qt@5 limitation). |
+| Windows native x86_64 | Working / verified + portable ZIP | Full KDF + Qt desktop build with portable ZIP output. CI green. |
+| Windows native arm64 | Roadmap | Future target. |
+| KDF WebAssembly | Working / verified + in releases | Docker wasm-pack build, CI green. mm2_bg.wasm + mm2.js in releases. |
+| Deterministic / reproducible builds | Not done yet | Reproducibility work still outstanding. |
 
 ## Release posture
 
-- This is not a finished cross-platform release yet.
-- Linux, macOS Intel/x86_64, native macOS arm64, and Windows x86_64 have working tested paths at varying levels of automation.
-- Native macOS arm64 currently ships as a no-QtWebEngine profile: the QtWebEngine-dependent chart/price widget is disabled, but the desktop wallet build and runtime are working.
-- The Apple Silicon limitation is specifically QtWebEngine availability in Homebrew `qt@5`, not the basic Apple Silicon toolchain or wallet build.
-- Windows CI is currently focused on getting **KDF x86_64** stable first; portable ZIP / installer automation is still ahead.
-- Windows arm64 is part of the roadmap and should be treated as a first-class future target, not an afterthought.
-- KDF wasm should still be treated as an **early pathway under construction**, but it is a real eventual target and should be added to CI once the core matrix is stable.
+- Tag-based releases (`git tag v* && git push --tags`) build all four
+  platforms and create a GitHub Release with individual artifacts.
+- Each release includes SHA256 checksums and a full provenance table
+  listing all pinned upstream sources.
+- Linux AppImage confirmed working and tested.
+- macOS DMG confirmed building in CI.
+- Windows portable ZIP confirmed building in CI (installer EXE still TBD).
+- WASM artifacts included in releases.
+- macOS arm64 is not in CI (requires Apple Silicon runner) but the
+  build script is tested on Mac mini M2.
 - Deterministic output has **not** been locked down yet.
 
 ## Target roadmap
 
 | Platform | Arch | Current shape | Eventual targets |
 |---|---|---|---|
-| Linux | x86_64 | KDF + AppImage path | KDF, Qt desktop, AppImage, checksums |
-| macOS | x86_64 | KDF + desktop / DMG path | KDF, Qt desktop, DMG, checksums |
+| Linux | x86_64 | KDF + AppImage + CI | KDF, Qt desktop, AppImage, checksums |
+| macOS | x86_64 | KDF + DMG + CI | KDF, Qt desktop, DMG, checksums |
 | macOS | arm64 | native path with QtWebEngine limitation | KDF, Qt desktop, DMG, checksums |
-| Windows | x86_64 | KDF-only CI automation today | KDF, Qt desktop, portable ZIP, installer EXE, checksums |
+| Windows | x86_64 | KDF + portable ZIP + CI | KDF, Qt desktop, portable ZIP, installer EXE, checksums |
 | Windows | arm64 | roadmap | KDF, Qt desktop, portable ZIP, installer EXE, checksums |
-| KDF | wasm | experimental path exists | wasm KDF artifact, checksums |
+| KDF | wasm | CI green + in releases | wasm KDF artifact, checksums |
 
 Recommended landing order:
 
-1. Linux x86_64 CI green
-2. Windows x86_64 KDF CI green
-3. macOS Intel CI green
+1. ~~Linux x86_64 CI green~~
+2. ~~Windows x86_64 KDF CI green~~
+3. ~~macOS Intel CI green~~
 4. ~~KDF wasm CI added~~
-5. Windows x86_64 desktop packaging
+5. ~~Windows x86_64 desktop packaging~~
 6. macOS arm64 polish
 7. Windows ARM64 KDF
 8. Windows ARM64 desktop packaging
 9. signing / reproducibility / manifests
+10. Windows installer EXE / macOS .pkg
 
 ## Help wanted
 

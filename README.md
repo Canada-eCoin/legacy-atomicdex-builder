@@ -1,12 +1,15 @@
 # AtomicDEX Legacy Builder
 
-> [!WARNING]
-> This project is in a **very early first release** state.
-> Tested paths: Linux, macOS Intel/x86_64, native macOS arm64 / Apple Silicon, and Windows.
-> Native macOS arm64 builds run with the QtWebEngine-dependent chart/price widget disabled.
-> Deterministic / reproducible builds are **not finished yet**.
-> Please read [STATUS.md](./STATUS.md) before relying on any build pathway.
-> Contributions and testers are welcome on **all platforms**.
+> [!NOTE]
+> All four platforms build and ship in CI: Linux, macOS Intel, Windows x86_64, and WASM.
+> Tag-based releases auto-create GitHub Releases with individual platform artifacts
+> and full provenance. See [STATUS.md](./STATUS.md) for current state.
+>
+> **Artifacts per platform:**
+> - **Linux:** KDF + AppImage (~187 MB)
+> - **macOS:** KDF + DMG (~146 MB)
+> - **Windows:** KDF + portable ZIP (~186 MB)
+> - **WASM:** mm2_bg.wasm + JS bindings (~32 MB)
 
 Portable build scripts for producing verified Komodo/AtomicDEX legacy artifacts:
 
@@ -239,8 +242,10 @@ A starter workflow now lives at:
 .github/workflows/build.yml
 ```
 
-Current CI is **manual-only** via `workflow_dispatch`. Nothing runs on push or PR —
-you trigger builds from the Actions tab or via the CLI helper:
+Current CI is **manual-only via `workflow_dispatch`** for development,
+and **tag-triggered** for releases. Nothing runs on push to `main`.
+
+**Development builds** — from the Actions tab or CLI:
 
 ```bash
 ./commands/ci/trigger.sh linux          # Linux only
@@ -249,22 +254,33 @@ you trigger builds from the Actions tab or via the CLI helper:
 ./commands/ci/trigger.sh windows --no-wait  # fire and forget
 ```
 
+**Release builds** — push a version tag, all four platforms build
+and a GitHub Release is created automatically:
+
+```bash
+git tag v0.1.0 && git push --tags
+```
+
+The release includes individual artifacts with platform-prefixed
+names, SHA256 checksums, and a full provenance table listing
+every pinned upstream source.
+
 Current CI shape:
 
-- **Linux:** full Docker build (`output/linux/`)
-- **macOS Intel:** native Intel/x86_64 build (`output/mac-intel/`)
-- **Windows:** **KDF-only** native build (`output/windows/`)
-- **WASM:** Docker Wasm build via `wasm-pack` (`output/wasm/`)
+- **Linux:** full Docker build → KDF + AppImage (`output/linux/`)
+- **macOS Intel:** native build → KDF + DMG (`output/mac-intel/`)
+- **Windows:** full native build → KDF + portable ZIP (`output/windows/`)
+- **WASM:** Docker build via `wasm-pack` (`output/wasm/`)
 
 Notes:
 
-- No automatic triggers — every build is manual via the Actions tab or `./commands/ci/trigger.sh`.
-- Windows desktop installer / portable zip are **not automated by this repo yet**.
-- macOS CI is pinned to an **Intel runner** because that is the better-validated
-  full desktop build path.
-- Each CI job uploads both its `output/<platform>/` artifacts and its
+- **Tag pushes** (`v*`) trigger all four platforms + a GitHub Release automatically.
+- **Manual dispatch** respects platform toggles — uncheck what you want to skip.
+- All four platform toggles default to **on** for manual runs.
+- Each CI job uploads both its `output/<platform>/` artifacts and
   `logs/<platform>/` build logs.
-- All four platform toggles default to **on** — uncheck what you want to skip.
+- macOS CI is pinned to an **Intel runner** (`macos-15-intel`); the
+  native ARM path has a QtWebEngine limitation (see STATUS.md).
 
 ### For forks
 
@@ -292,36 +308,39 @@ If you fork this repo and want CI to work, you need to:
 
 ### Current cache posture
 
-- **Linux Docker builds:** the Dockerfile uses BuildKit cache mounts for
-  Cargo, KDF target output, desktop build output, and vcpkg installed state.
-- **GitHub Actions cross-run cache:** wired via `docker buildx build` with
-  `--cache-from type=gha --cache-to type=gha,mode=max`. Heavy layers (Cargo
-  registry, KDF target dir, apt packages) persist across runs when upstream
-  sources haven't changed.
-- **macOS / Windows hosted runners:** currently mostly cold-start each run.
+- **Linux + WASM Docker builds:** BuildKit GHA cache backend via
+  `docker-container` driver with `--cache-to type=gha,mode=max`.
+  Heavy layers (Cargo registry, KDF target dir, apt packages,
+  wasm-pack) persist across runs when upstream sources haven't
+  changed.
+- **Windows:** Qt 5.15.2 is cached via `install-qt-action` (~330 MB).
+  Cargo/vcpkg are currently cold-start each run.
+- **macOS:** no cross-run caching yet; Cargo, vcpkg, and Homebrew
+  deps are cold-start.
 
 ### Target roadmap
 
 | Platform | Arch | Current shape | Eventual targets |
 | --- | --- | --- | --- |
-| Linux | x86_64 | KDF + AppImage path | KDF, Qt desktop, AppImage, checksums |
-| macOS | x86_64 | KDF + desktop / DMG path | KDF, Qt desktop, DMG, checksums |
+| Linux | x86_64 | KDF + AppImage + CI | KDF, Qt desktop, AppImage, checksums |
+| macOS | x86_64 | KDF + DMG + CI | KDF, Qt desktop, DMG, checksums |
 | macOS | arm64 | native path with QtWebEngine limitation | KDF, Qt desktop, DMG, checksums |
-| Windows | x86_64 | KDF-only automation | KDF, Qt desktop, portable ZIP, installer EXE, checksums |
+| Windows | x86_64 | KDF + portable ZIP + CI | KDF, Qt desktop, portable ZIP, installer EXE, checksums |
 | Windows | arm64 | roadmap | KDF, Qt desktop, portable ZIP, installer EXE, checksums |
-| KDF | wasm | CI added, early Docker build path | wasm KDF artifact, checksums |
+| KDF | wasm | CI green + in releases | wasm KDF artifact, checksums |
 
 Recommended landing order:
 
-1. Linux x86_64 CI green
-2. Windows x86_64 KDF CI green
-3. macOS Intel CI green
+1. ~~Linux x86_64 CI green~~
+2. ~~Windows x86_64 KDF CI green~~
+3. ~~macOS Intel CI green~~
 4. ~~KDF wasm CI added~~
-5. Windows x86_64 desktop packaging
+5. ~~Windows x86_64 desktop packaging~~
 6. macOS arm64 polish
 7. Windows ARM64 KDF
 8. Windows ARM64 desktop packaging
 9. signing / reproducibility / manifests
+10. Windows installer EXE / macOS .pkg
 
 ---
 
