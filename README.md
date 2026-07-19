@@ -5,10 +5,10 @@
 > Tag-based releases auto-create GitHub Releases with individual platform artifacts
 > and full provenance. See [STATUS.md](./STATUS.md) for current state.
 >
-> **Artifacts per platform:**
-> - **Linux:** KDF + AppImage (~187 MB)
-> - **macOS:** KDF + DMG (~146 MB)
-> - **Windows:** KDF + portable ZIP (~186 MB)
+> **Artifacts per CI release target:**
+> - **Linux x86_64:** KDF + AppImage (~187 MB)
+> - **macOS Intel/x86_64:** KDF + DMG (~146 MB)
+> - **Windows x86_64:** KDF + portable ZIP (~186 MB)
 > - **WASM:** mm2_bg.wasm + JS bindings (~32 MB)
 
 Portable build scripts for producing verified Komodo/AtomicDEX legacy artifacts:
