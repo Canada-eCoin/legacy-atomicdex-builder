@@ -1,18 +1,18 @@
 #!/bin/bash
 # build — Sovereign DEX build
 #
-#   ./build                         auto-detect: Docker on Linux, native on macOS/Windows
-#   ./build kdf                     KDF engine only
-#   ./build desktop                 desktop artifact only (needs KDF from prior run)
-#   ./build wasm                    KDF → WebAssembly
-#   ./build native                  force native build
-#   ./build native kdf              native KDF only
-#   ./build native desktop          native desktop only
-#   ./build --dry-run               native dry-run (forces native path)
-#   ./build --install-deps          native dependency install only (forces native path)
-#   ./build native desktop --dry-run
-#   ./build clean                   remove .build/, output/, and logs/
-#   ./build clean --all             also clear Docker BuildKit cache
+#   ./commands/build/command.sh                         auto-detect: Docker on Linux, native on macOS/Windows
+#   ./commands/build/command.sh kdf                     KDF engine only
+#   ./commands/build/command.sh desktop                 desktop artifact only (needs KDF from prior run)
+#   ./commands/build/command.sh wasm                    KDF → WebAssembly
+#   ./commands/build/command.sh native                  force native build
+#   ./commands/build/command.sh native kdf              native KDF only
+#   ./commands/build/command.sh native desktop          native desktop only
+#   ./commands/build/command.sh --dry-run               native dry-run (forces native path)
+#   ./commands/build/command.sh --install-deps          native dependency install only (forces native path)
+#   ./commands/build/command.sh native desktop --dry-run
+#   ./commands/build/command.sh clean                   remove .build/, output/, and logs/
+#   ./commands/build/command.sh clean --all             also clear Docker BuildKit cache
 #
 # Docker path uses the multi-stage Dockerfile with cache mounts.
 # Native path forwards native flags to the platform build script.
@@ -58,17 +58,17 @@ FORCE_NATIVE=false
 CLEAN_ALL=false
 
 usage() {
-    echo "Usage: ./build [native|docker|clean] [all|kdf|desktop|wasm] [flags]"
-    echo "       ./build                         auto-detect (Docker on Linux, native elsewhere)"
-    echo "       ./build kdf                     KDF only"
-    echo "       ./build desktop                 desktop only"
-    echo "       ./build wasm                    KDF → WebAssembly"
-    echo "       ./build native                  force native build"
-    echo "       ./build --dry-run               native dry-run"
-    echo "       ./build --install-deps          native dep install"
-    echo "       ./build --arch intel            native mac Intel/x86_64 path"
-    echo "       ./build --arch arm              native mac arm64 path"
-    echo "       ./build clean [--all]           remove build artifacts"
+    echo "Usage: ./commands/build/command.sh [native|docker|clean] [all|kdf|desktop|wasm] [flags]"
+    echo "       ./commands/build/command.sh                         auto-detect (Docker on Linux, native elsewhere)"
+    echo "       ./commands/build/command.sh kdf                     KDF only"
+    echo "       ./commands/build/command.sh desktop                 desktop only"
+    echo "       ./commands/build/command.sh wasm                    KDF → WebAssembly"
+    echo "       ./commands/build/command.sh native                  force native build"
+    echo "       ./commands/build/command.sh --dry-run               native dry-run"
+    echo "       ./commands/build/command.sh --install-deps          native dep install"
+    echo "       ./commands/build/command.sh --arch intel            native mac Intel/x86_64 path"
+    echo "       ./commands/build/command.sh --arch arm              native mac arm64 path"
+    echo "       ./commands/build/command.sh clean [--all]           remove build artifacts"
 }
 
 while [ "$#" -gt 0 ]; do
