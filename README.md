@@ -427,6 +427,7 @@ Current pins are in `config/sources.json`.
 | KDF | `KomodoPlatform/komodo-defi-framework` | `30c877c5` |
 | Desktop | `cipig/komodo-wallet-desktop`, branch `nogeo` | `0d333c5` |
 | Coin configs | `cipig/coins`, branch `nogeo` | `6d0db32` |
+| vcpkg baseline | `microsoft/vcpkg` | `36393d1ca008d0086488a9041afac26ed3b8edb9` |
 | Linux base | ubuntu:22.04 | glibc 2.35 |
 
 Environment variables can override these pins for local experiments or CI.

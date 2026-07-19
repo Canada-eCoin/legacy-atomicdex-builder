@@ -27,6 +27,10 @@
       "repo": "https://github.com/cipig/coins",
       "branch": "nogeo",
       "commit": "6d0db32"
+    },
+    "vcpkg": {
+      "repo": "https://github.com/microsoft/vcpkg",
+      "commit": "36393d1ca008d0086488a9041afac26ed3b8edb9"
     }
   }
 }
