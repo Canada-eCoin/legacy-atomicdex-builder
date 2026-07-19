@@ -192,7 +192,7 @@ if [ "$MODE" = "docker" ]; then
         echo "=== KDF → WebAssembly ==="
         CACHE_FLAGS=()
         if [ "${GITHUB_ACTIONS:-}" = "true" ]; then
-            CACHE_FLAGS=(--cache-from type=gha --cache-to type=gha,mode=max)
+            CACHE_FLAGS=(--cache-from type=gha,scope=wasm-build --cache-to type=gha,scope=wasm-build,mode=max)
         fi
         docker buildx build --progress=plain \
             "${CACHE_FLAGS[@]}" \
@@ -219,7 +219,7 @@ if [ "$MODE" = "docker" ]; then
     echo "=== Docker build --target ${DOCKER_TARGET} ==="
     CACHE_FLAGS=()
     if [ "${GITHUB_ACTIONS:-}" = "true" ]; then
-        CACHE_FLAGS=(--cache-from type=gha --cache-to type=gha,mode=max)
+        CACHE_FLAGS=(--cache-from type=gha,scope=linux-build --cache-to type=gha,scope=linux-build,mode=max)
     fi
     docker buildx build --progress=plain \
         "${CACHE_FLAGS[@]}" \
