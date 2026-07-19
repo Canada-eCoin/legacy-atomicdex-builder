@@ -196,6 +196,15 @@ src/build-windows.ps1 -Yes          # skip prompts
 src/build-windows.ps1 -DryRun       # check dependencies and print plan
 ```
 
+If you're running from Git Bash / MSYS / Cygwin, the command wrapper now
+forwards native Windows builds to PowerShell:
+
+```bash
+./commands/build/command.sh native
+./commands/build/command.sh native kdf
+./commands/build/command.sh native desktop --dry-run
+```
+
 KDF builds natively with Rust. Desktop wallet builds with Qt5 + MSVC;
 full walkthrough in [WINDOWS.md](./WINDOWS.md).
 

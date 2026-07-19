@@ -30,6 +30,26 @@ case "$(uname -s)" in
     *)      echo "Unknown platform: $(uname -s)"; exit 1 ;;
 esac
 
+native_script_for_platform() {
+    case "$1" in
+        windows) echo "src/build-windows.ps1" ;;
+        linux|mac) echo "src/build-$1.sh" ;;
+        *) return 1 ;;
+    esac
+}
+
+windows_powershell_runner() {
+    if command -v pwsh >/dev/null 2>&1; then
+        echo "pwsh"
+    elif command -v powershell.exe >/dev/null 2>&1; then
+        echo "powershell.exe"
+    elif command -v powershell >/dev/null 2>&1; then
+        echo "powershell"
+    else
+        return 1
+    fi
+}
+
 # ── Parse args ───────────────────────────────────────────────
 MODE="auto"      # auto | docker | native | clean
 TARGET="all"     # all | kdf | desktop | wasm | clean
@@ -139,9 +159,10 @@ fi
 
 # ── Auto-detect Docker ───────────────────────────────────────
 if [ "$MODE" = "auto" ]; then
+    NATIVE_SCRIPT="$(native_script_for_platform "$PLATFORM")"
     if docker version &>/dev/null && ! $FORCE_NATIVE; then
         MODE="docker"
-    elif [ -f "src/build-${PLATFORM}.sh" ]; then
+    elif [ -f "$NATIVE_SCRIPT" ]; then
         MODE="native"
     else
         echo "ERROR: No Docker and no native build script for ${PLATFORM}"
@@ -239,13 +260,49 @@ if [ "$MODE" = "docker" ]; then
 fi
 
 # ═══════════════════════════════════════════════════════════════
-# Native path — src/build-linux.sh with dep detection
+# Native path — platform-native scripts with flag translation
 # ═══════════════════════════════════════════════════════════════
 if [ "$MODE" = "native" ]; then
-    SCRIPT="src/build-${PLATFORM}.sh"
+    SCRIPT="$(native_script_for_platform "$PLATFORM")"
     if [ ! -f "$SCRIPT" ]; then
         echo "ERROR: No native build script for ${PLATFORM}: $SCRIPT"
         exit 1
+    fi
+
+    echo ""
+
+    if [ "$PLATFORM" = "windows" ]; then
+        RUNNER="$(windows_powershell_runner)" || {
+            echo "ERROR: Windows native build requires PowerShell (pwsh or powershell.exe)"
+            exit 1
+        }
+
+        FLAGS=("-Yes")
+        case "$TARGET" in
+            all)     ;;
+            kdf)     FLAGS+=("-KdfOnly") ;;
+            desktop) FLAGS+=("-DesktopOnly") ;;
+            *)       echo "Unknown target for native build: $TARGET"; exit 1 ;;
+        esac
+
+        for flag in "${NATIVE_FLAGS[@]}"; do
+            case "$flag" in
+                --yes|-y)          ;;
+                --dry-run)         FLAGS+=("-DryRun") ;;
+                --install-deps)    FLAGS+=("-InstallDeps") ;;
+                --intel|--arm|--arch|--arch=*)
+                    echo "ERROR: ${flag} is a mac-only flag and is not valid for Windows builds"
+                    exit 1
+                    ;;
+                *)
+                    echo "ERROR: Unsupported Windows native flag: ${flag}"
+                    exit 1
+                    ;;
+            esac
+        done
+
+        "$RUNNER" -NoProfile -ExecutionPolicy Bypass -File "$SCRIPT" "${FLAGS[@]}"
+        exit $?
     fi
 
     FLAGS=("--yes")
@@ -260,7 +317,6 @@ if [ "$MODE" = "native" ]; then
         FLAGS+=("${NATIVE_FLAGS[@]}")
     fi
 
-    echo ""
     "$SCRIPT" "${FLAGS[@]}"
     exit $?
 fi
