@@ -17,8 +17,9 @@ Portable build scripts for producing verified Komodo/AtomicDEX legacy artifacts:
 - **Desktop wallet AppImage** from `cipig/komodo-wallet-desktop` (`nogeo`)
 - Optional **KDF WebAssembly** build
 
-The build is **native-first**: each platform script is the source of truth.
-Docker is available for clean-room Linux builds, but it is not required.
+The native platform scripts are the source of truth for build behavior.
+On Linux, the command wrapper prefers Docker for clean-room builds when it is
+available; macOS and Windows default to their native scripts.
 
 **Proven Linux build:** KDF engine (~65 MB) and desktop AppImage (~187 MB)
 built from `cipig/nogeo` on ubuntu:22.04 / glibc 2.35. The artifacts run
