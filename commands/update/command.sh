@@ -41,8 +41,8 @@ echo
 echo "→ Files that trigger a rebuild:"
 CHANGED_BUILD_FILES=$(git diff --name-only "$BEFORE" "$AFTER" -- \
     commands/build/command.sh \
-    commands/install/command.sh \
     commands/update/command.sh \
+    commands/trigger-ci/command.sh \
     src/Dockerfile \
     src/Dockerfile.kdf-wasm \
     src/build-linux.sh \

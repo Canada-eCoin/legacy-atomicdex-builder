@@ -117,32 +117,14 @@ src/build-linux.sh --desktop-only
 
 Desktop builds expect KDF to already be available from a prior run.
 
-### 4. Install the built Linux desktop wallet
-
-```bash
-./commands/install/command.sh linux
-```
-
-Default install prefix is `~/.local`, so the launcher is installed as:
-
-```text
-~/.local/bin/community-exchange
-```
-
-Install somewhere else:
-
-```bash
-./commands/install/command.sh linux --prefix /usr/local
-```
-
-### 5. Run without installing
+### 4. Run the built Linux desktop wallet
 
 ```bash
 chmod +x output/linux/komodo-wallet-desktop-x86_64.AppImage
 ./output/linux/komodo-wallet-desktop-x86_64.AppImage
 ```
 
-### 6. Trigger GitHub Actions builds manually
+### 5. Trigger GitHub Actions builds manually
 
 ```bash
 ./commands/trigger-ci/command.sh linux
@@ -451,7 +433,7 @@ Environment variables can override these pins for local experiments or CI.
 atomicdex-legacy-builder/
 ├── commands/
 │   ├── build/command.sh         main entry point
-│   ├── install/command.sh       install artifacts to system paths
+│   ├── trigger-ci/command.sh    dispatch GitHub Actions builds
 │   └── update/command.sh        pull latest pipeline changes
 ├── config/
 │   ├── sources.json             pinned upstream repos and commits
