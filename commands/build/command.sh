@@ -190,9 +190,11 @@ summarize_errors() {
     local log="$1"
     if [ ! -f "$log" ]; then return; fi
     local errors
-    errors=$(grep -c -i -E '(error:|ERROR|failed:|FAILED|✗|fatal:|undefined reference)' "$log" 2>/dev/null || echo 0)
+    errors=$(grep -c -i -E '(error:|ERROR|failed:|FAILED|✗|fatal:|undefined reference)' "$log" 2>/dev/null || true)
+    errors=${errors:-0}
     local warnings
-    warnings=$(grep -c -i -E '(warning:|WARNING|⚠)' "$log" 2>/dev/null || echo 0)
+    warnings=$(grep -c -i -E '(warning:|WARNING|⚠)' "$log" 2>/dev/null || true)
+    warnings=${warnings:-0}
     if [ "$errors" -gt 0 ] || [ "$warnings" -gt 0 ]; then
         echo ""
         echo "── Build Summary ──────────────────────────"
