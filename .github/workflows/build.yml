@@ -263,6 +263,7 @@ jobs:
             find "$dir" -type f \
               ! -path '*komodo-wallet.app/*' \
               ! -name 'kdf_kwd' \
+              ! -name '*.sha256' \
               -size +0c | while read f; do
               base="$(basename "$f")"
               # Add platform prefix unless it already has a unique name
