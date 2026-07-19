@@ -87,7 +87,7 @@ The pinned commits live in `config/sources.json`:
 |-----------|------|--------|
 | KDF | `KomodoPlatform/komodo-defi-framework` | `30c877c5` |
 | Desktop wallet | `cipig/komodo-wallet-desktop` | `0d333c5` |
-| Coins config | `cipig/coins` (branch `nogeo`) | latest |
+| Coins config | `cipig/coins` (branch `nogeo`) | `6d0db32` |
 
 ---
 

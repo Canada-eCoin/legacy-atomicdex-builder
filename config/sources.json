@@ -25,7 +25,8 @@
     },
     "coin_configs": {
       "repo": "https://github.com/cipig/coins",
-      "branch": "nogeo"
+      "branch": "nogeo",
+      "commit": "6d0db32"
     }
   }
 }
