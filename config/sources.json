@@ -32,5 +32,18 @@
       "repo": "https://github.com/microsoft/vcpkg",
       "commit": "36393d1ca008d0086488a9041afac26ed3b8edb9"
     }
+  },
+  "builder_bases": {
+    "linux_kdf": {
+      "source": "docker.io/library/rust",
+      "url": "https://hub.docker.com/_/rust",
+      "tag": "1.84.0-bookworm"
+    },
+    "linux_desktop": {
+      "source": "docker.io/library/ubuntu",
+      "url": "https://hub.docker.com/_/ubuntu",
+      "tag": "22.04",
+      "note": "glibc 2.35"
+    }
   }
 }
