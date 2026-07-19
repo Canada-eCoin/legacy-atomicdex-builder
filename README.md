@@ -451,7 +451,9 @@ atomicdex-legacy-builder/
 ├── logs/                        build logs, gitignored
 ├── .build/                      upstream clones/cache, gitignored
 ├── env.sample                   documented environment variables
-└── README.md
+├── README.md                    primary operator guide
+├── STATUS.md                    current build and release state
+└── WINDOWS.md                   detailed native Windows build guide
 ```
 
 ---
