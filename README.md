@@ -63,13 +63,19 @@ Use the command wrapper unless you have a reason to call a platform script direc
 Artifacts land in:
 
 ```text
-output/<platform>/
+Linux:    output/linux/
+Windows:  output/windows/
+WASM:     output/wasm/
+macOS:    output/mac-intel/ or output/mac-arm/
 ```
 
 Logs land in:
 
 ```text
-logs/<platform>/
+Linux:    logs/linux/
+Windows:  logs/windows/
+WASM:     logs/wasm/
+macOS:    logs/mac-intel/ or logs/mac-arm/
 ```
 
 ---
