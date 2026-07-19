@@ -1,7 +1,7 @@
 #!/bin/bash
 # build — Sovereign DEX build
 #
-#   ./build                         everything, Docker if available, auto-detect platform
+#   ./build                         auto-detect: Docker on Linux, native on macOS/Windows
 #   ./build kdf                     KDF engine only
 #   ./build desktop                 desktop artifact only (needs KDF from prior run)
 #   ./build wasm                    KDF → WebAssembly
@@ -59,7 +59,7 @@ CLEAN_ALL=false
 
 usage() {
     echo "Usage: ./build [native|docker|clean] [all|kdf|desktop|wasm] [flags]"
-    echo "       ./build                         everything, auto-detect"
+    echo "       ./build                         auto-detect (Docker on Linux, native elsewhere)"
     echo "       ./build kdf                     KDF only"
     echo "       ./build desktop                 desktop only"
     echo "       ./build wasm                    KDF → WebAssembly"
@@ -160,12 +160,21 @@ fi
 # ── Auto-detect Docker ───────────────────────────────────────
 if [ "$MODE" = "auto" ]; then
     NATIVE_SCRIPT="$(native_script_for_platform "$PLATFORM")"
-    if docker version &>/dev/null && ! $FORCE_NATIVE; then
+    if [ "$TARGET" = "wasm" ]; then
+        if docker version &>/dev/null; then
+            MODE="docker"
+        else
+            echo "ERROR: wasm target requires Docker"
+            exit 1
+        fi
+    elif [ "$PLATFORM" = "linux" ] && docker version &>/dev/null && ! $FORCE_NATIVE; then
         MODE="docker"
     elif [ -f "$NATIVE_SCRIPT" ]; then
         MODE="native"
+    elif docker version &>/dev/null; then
+        MODE="docker"
     else
-        echo "ERROR: No Docker and no native build script for ${PLATFORM}"
+        echo "ERROR: No native build script for ${PLATFORM} and Docker unavailable"
         exit 1
     fi
 fi

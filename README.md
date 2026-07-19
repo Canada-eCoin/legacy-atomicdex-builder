@@ -40,7 +40,9 @@ in [WINDOWS.md](./WINDOWS.md).
 Use the command wrapper unless you have a reason to call a platform script directly:
 
 ```bash
-# Auto-detect Docker or native build path
+# Auto-detect build path
+# - Linux: prefers Docker when available, otherwise native
+# - macOS / Windows: prefers native
 ./commands/build/command.sh
 
 # Build one target
@@ -80,8 +82,8 @@ logs/<platform>/
 ./commands/build/command.sh
 ```
 
-If Docker is running, the wrapper uses the clean-room Docker path. If Docker
-is unavailable, it falls back to the native Linux script.
+On Linux, if Docker is running, the wrapper uses the clean-room Docker path.
+If Docker is unavailable, it falls back to the native Linux script.
 
 To force native:
 
@@ -212,8 +214,9 @@ full walkthrough in [WINDOWS.md](./WINDOWS.md).
 
 ## Docker clean-room builds
 
-The Dockerfile lives at `src/Dockerfile`, so direct Docker commands must pass
-`-f src/Dockerfile`.
+Docker is the clean-room path for Linux artifacts. The Dockerfile lives at
+`src/Dockerfile`, so direct Docker commands must pass `-f src/Dockerfile`.
+macOS and Windows default to their native build scripts in auto mode.
 
 ```bash
 # KDF only
