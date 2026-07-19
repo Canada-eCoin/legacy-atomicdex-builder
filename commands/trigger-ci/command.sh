@@ -12,7 +12,24 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 cd "$PROJECT_DIR"
 
-REPO="Canada-eCoin/legacy-atomicdex-builder"
+derive_repo_from_origin() {
+    local remote_url slug
+    remote_url=$(git remote get-url origin 2>/dev/null || true)
+    if [ -z "$remote_url" ]; then
+        return 1
+    fi
+    slug=$(printf '%s\n' "$remote_url" | sed -nE 's#^.*github\.com[:/]([^/]+/[^/]+)$#\1#p')
+    slug=${slug%.git}
+    if [ -z "$slug" ] || [ "$slug" = "$remote_url" ]; then
+        return 1
+    fi
+    printf '%s\n' "$slug"
+}
+
+REPO="$(derive_repo_from_origin)" || {
+    echo "ERROR: Could not derive GitHub repo slug from git remote origin" >&2
+    exit 1
+}
 WORKFLOW="build.yml"
 POLL_INTERVAL=15
 WAIT=true
