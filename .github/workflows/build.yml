@@ -311,6 +311,8 @@ jobs:
           echo "| Qaterial | [${QATERIAL_REPO#https://}]($QATERIAL_REPO) | \`$QATERIAL_COMMIT\` |" >> release-body.md
           echo "| Coin configs | [${COINS_REPO#https://} ($COINS_BRANCH)]($COINS_REPO) | \`$COINS_COMMIT\` |" >> release-body.md
           echo "| vcpkg baseline | [${VCPKG_REPO#https://}]($VCPKG_REPO) | \`$VCPKG_COMMIT\` |" >> release-body.md
+          echo "| Linux KDF builder base | [docker.io/library/rust:1.84.0-bookworm](https://hub.docker.com/_/rust) | \`rust:1.84.0-bookworm\` |" >> release-body.md
+          echo "| Linux desktop builder base | [docker.io/library/ubuntu:22.04](https://hub.docker.com/_/ubuntu) | \`ubuntu:22.04\` |" >> release-body.md
           echo "| libwally-core | [github.com/ElementsProject/libwally-core](https://github.com/ElementsProject/libwally-core) | \`release_0.9.2\` |" >> release-body.md
           echo "| Qt (win/mac) | [qt.io](https://download.qt.io/archive/qt/5.15/5.15.2/) | \`5.15.2\` |" >> release-body.md
           echo "| binaryen (WASM) | [github.com/WebAssembly/binaryen](https://github.com/WebAssembly/binaryen) | \`version_120\` |" >> release-body.md
