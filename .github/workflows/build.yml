@@ -258,14 +258,26 @@ jobs:
       - name: Flatten and checksum
         run: |
           mkdir -p release
-          # Collect only top-level artifacts, skip .app internals and zero-byte files
-          find artifacts -type f \
-            ! -path '*komodo-wallet.app/*' \
-            ! -path '*/kdf_kwd' \
-            -size +0c | while read f; do
-            base="$(basename "$f")"
-            cp "$f" "release/$base"
-            sha256sum "$f" | sed "s|$f|$base|" > "release/$base.sha256"
+          # Platform-prefix all files — basenames collide across platforms
+          for dir in artifacts/atomicdex-*/; do
+            label="$(echo "$dir" | sed 's|artifacts/atomicdex-||;s|-output/||')"
+            find "$dir" -type f \
+              ! -path '*komodo-wallet.app/*' \
+              ! -name 'kdf_kwd' \
+              -size +0c | while read f; do
+              base="$(basename "$f")"
+              # Add platform prefix unless it already has a unique name
+              case "$base" in
+                *.AppImage|*.dmg|*.wasm|*.js|*.json|*.zip|*.exe)
+                  dest="$base" ;;
+                kdf|kdf.sha256)
+                  dest="${label}-${base}" ;;
+                *)
+                  dest="${label}-${base}" ;;
+              esac
+              cp "$f" "release/$dest"
+              sha256sum "$f" | sed "s|$f|$dest|" > "release/$dest.sha256"
+            done
           done
           echo '=== Release assets ==='
           ls -lah release/
