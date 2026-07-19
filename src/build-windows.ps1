@@ -5,8 +5,9 @@
 # or from any terminal. Zero Docker.
 #
 # Usage:
-#   .\build-windows.ps1                 # full build (KDF only; desktop is manual)
+#   .\build-windows.ps1                 # full build (KDF + desktop wallet)
 #   .\build-windows.ps1 -KdfOnly        # KDF engine only
+#   .\build-windows.ps1 -DesktopOnly    # desktop wallet only (expects staged KDF)
 #   .\build-windows.ps1 -Yes            # skip all consent prompts
 #   .\build-windows.ps1 -InstallDeps    # install missing deps without building
 #   .\build-windows.ps1 -DryRun         # check deps and print plan, no build
@@ -20,10 +21,9 @@
 #   logs\windows\build.log              # full build output
 #   logs\windows\installed.log          # packages installed and how to undo
 #
-# Desktop wallet: QT5 + WebEngine on Windows requires MSVC and is complex
-# to automate. KDF builds natively. Desktop: see README.md for native
-# Windows desktop build steps, or cross-compile KDF from Linux and build
-# desktop on a Windows VM.
+# Desktop wallet: Qt5 + WebEngine on Windows requires MSVC, Qt, and a
+# larger toolchain surface than the KDF build. This script automates the
+# native desktop build once those prerequisites are present.
 #
 # Requirements:
 #   Windows 10+ (x86_64)
@@ -670,7 +670,7 @@ function Build-Kdf {
 }
 
 # ═══════════════════════════════════════════════════════════════
-# Build: Desktop wallet (guidance only — native build is complex)
+# Build: Desktop wallet
 # ═══════════════════════════════════════════════════════════════
 
 function Build-Desktop {
@@ -892,7 +892,7 @@ function Main {
         Write-Host ""
         Write-Host "[DRY RUN] Would build:" -ForegroundColor Green
         if ($KdfOnly) { Write-Host "  → KDF engine only" -ForegroundColor Green }
-        if ($DesktopOnly) { Write-Host "  → Desktop wallet guidance" -ForegroundColor Green }
+        if ($DesktopOnly) { Write-Host "  → Desktop wallet only" -ForegroundColor Green }
         if (-not $KdfOnly -and -not $DesktopOnly) { Write-Host "  → KDF + Desktop wallet" -ForegroundColor Green }
         Write-Host ""
         Log "Dry run completed"
@@ -904,7 +904,7 @@ function Main {
         Build-Kdf
     }
 
-    # ── Desktop guidance ────────────────────────────────────
+    # ── Build desktop wallet ────────────────────────────────
     if (-not $KdfOnly) {
         Build-Desktop
     }

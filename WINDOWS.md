@@ -134,8 +134,10 @@ Output: `output\windows\kdf.exe` (~78 MB).
 
 ## Step 3 — Build Desktop Wallet
 
-The desktop wallet is a CMake + Ninja + vcpkg + Qt project.  This is the
-complex part.
+The desktop wallet is a CMake + Ninja + vcpkg + Qt project. This is the
+complex part, and `src/build-windows.ps1` automates it once the Windows
+toolchain prerequisites are installed. The breakdown below explains what the
+script is doing internally.
 
 ### 3.1 — Prepare source tree
 
@@ -496,7 +498,10 @@ The script at `src/build-windows.ps1` handles:
 3. **KDF clone + build** — Checks out pinned commit, sets up MSVC env,
    builds with cargo, copies output.
 
-4. **Desktop guidance** — Prints manual build steps (the desktop part
-   was considered too complex to fully automate).
+4. **Desktop clone + build** — Clones the pinned desktop repo, stages KDF,
+   bootstraps Qt/vcpkg/libwally, builds with CMake + Ninja, and packages a
+   portable ZIP (plus installer when Qt IFW is available).
 
-To run: `.\src\build-windows.ps1 -KdfOnly`
+To run full build: `.\src\build-windows.ps1`
+
+To run KDF only: `.\src\build-windows.ps1 -KdfOnly`
