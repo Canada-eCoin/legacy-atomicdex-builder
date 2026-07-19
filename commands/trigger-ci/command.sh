@@ -94,18 +94,15 @@ for p in "${ALL_PLATFORMS[@]}"; do
 done
 
 # ── Fire the workflow ───────────────────────────────────────────
-echo "╔══════════════════════════════════════════════════════╗"
-echo "║  CI Trigger — $REPO                  ║"
-echo "╠══════════════════════════════════════════════════════╣"
-printf "║  ref: %-46s ║\n" "$GH_REF"
+echo "CI Trigger — $REPO"
+echo "  ref: $GH_REF"
 for p in "${ALL_PLATFORMS[@]}"; do
     if [ "${INPUTS[$p]}" = "true" ]; then
-        printf "║  %-7s ● enabled%-34s ║\n" "$p" ""
+        echo "  $p: enabled"
     else
-        printf "║  %-7s ○ skipped%-34s ║\n" "$p" ""
+        echo "  $p: skipped"
     fi
 done
-echo "╚══════════════════════════════════════════════════════╝"
 echo ""
 
 gh workflow run "$WORKFLOW" --repo "$REPO" --ref "$GH_REF" "${GH_INPUTS[@]}"
