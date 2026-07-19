@@ -14,7 +14,7 @@
 Portable build scripts for producing verified Komodo/AtomicDEX legacy artifacts:
 
 - **KDF engine** from `KomodoPlatform/komodo-defi-framework`
-- **Desktop wallet AppImage** from `cipig/komodo-wallet-desktop` (`nogeo`)
+- **Desktop wallet** from `cipig/komodo-wallet-desktop` (`nogeo`)
 - Optional **KDF WebAssembly** build
 
 The native platform scripts are the source of truth for build behavior.
