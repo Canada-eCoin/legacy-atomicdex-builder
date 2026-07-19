@@ -1,16 +1,13 @@
 # AtomicDEX Legacy Builder
 
 > [!NOTE]
-> All four platforms build and ship in CI: Linux, macOS Intel, Windows x86_64, and WASM.
-> Tag-based releases auto-create GitHub Releases with individual platform artifacts,
-> checksum files, and a `PROVENANCE.md` manifest. See [STATUS.md](./STATUS.md)
-> for current state.
+> Tag-based releases auto-create GitHub Releases with checksums and a
+> `PROVENANCE.md` manifest. See [STATUS.md](./STATUS.md) for current state.
 >
-> **Artifacts per CI release target:**
-> - **Linux x86_64:** KDF + AppImage (~187 MB)
-> - **macOS Intel/x86_64:** KDF + DMG (~146 MB)
-> - **Windows x86_64:** KDF + portable ZIP (~186 MB)
-> - **WASM:** mm2_bg.wasm + JS bindings (~32 MB)
+> **CI release surfaces:**
+> - **KDF binaries:** Linux x86_64, macOS Intel/x86_64, Windows x86_64
+> - **Desktop wallets:** Linux AppImage (~187 MB), macOS Intel DMG (~146 MB), Windows x86_64 portable ZIP (~186 MB)
+> - **WASM artifact:** mm2_bg.wasm + JS bindings (~32 MB)
 
 Portable build scripts for producing verified Komodo/AtomicDEX legacy artifacts:
 
