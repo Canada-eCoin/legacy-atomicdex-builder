@@ -77,7 +77,7 @@ scoop install llvm ninja 7zip python
 ## Step 1 — Clone everything
 
 ```powershell
-git clone https://github.com/anomalyco/legacy-atomicdex-builder.git
+git clone https://github.com/Canada-eCoin/legacy-atomicdex-builder.git
 cd legacy-atomicdex-builder
 ```
 
