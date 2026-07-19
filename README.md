@@ -433,8 +433,7 @@ Environment variables can override these pins for local experiments or CI.
 atomicdex-legacy-builder/
 ├── commands/
 │   ├── build/command.sh         main entry point
-│   ├── trigger-ci/command.sh    dispatch GitHub Actions builds
-│   └── update/command.sh        pull latest pipeline changes
+│   └── trigger-ci/command.sh    dispatch GitHub Actions builds
 ├── config/
 │   ├── sources.json             pinned upstream repos and commits
 │   ├── platforms.json           per-platform toolchain pins
