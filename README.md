@@ -2,8 +2,9 @@
 
 > [!NOTE]
 > All four platforms build and ship in CI: Linux, macOS Intel, Windows x86_64, and WASM.
-> Tag-based releases auto-create GitHub Releases with individual platform artifacts
-> and full provenance. See [STATUS.md](./STATUS.md) for current state.
+> Tag-based releases auto-create GitHub Releases with individual platform artifacts,
+> checksum files, and a `PROVENANCE.md` manifest. See [STATUS.md](./STATUS.md)
+> for current state.
 >
 > **Artifacts per CI release target:**
 > - **Linux x86_64:** KDF + AppImage (~187 MB)
