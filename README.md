@@ -436,8 +436,7 @@ atomicdex-legacy-builder/
 │   └── trigger-ci/command.sh    dispatch GitHub Actions builds
 ├── config/
 │   ├── sources.json             pinned upstream repos and commits
-│   ├── platforms.json           per-platform toolchain pins
-│   └── patches/                 optional numbered patch files
+│   └── platforms.json           per-platform toolchain pins
 ├── src/
 │   ├── build-linux.sh           native Linux build
 │   ├── build-mac.sh             macOS build dispatcher
