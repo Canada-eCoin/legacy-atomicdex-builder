@@ -90,6 +90,7 @@ The pinned source revisions live in `config/sources.json`:
 | Coins config | `cipig/coins` (branch `nogeo`) | git commit | `6d0db32` |
 | vcpkg baseline | `microsoft/vcpkg` | git commit | `36393d1ca008d0086488a9041afac26ed3b8edb9` |
 | libwally-core | `ElementsProject/libwally-core` | git tag | `release_0.9.2` |
+| Qt (win/mac) | `download.qt.io/archive/qt/5.15/5.15.2/` | version | `5.15.2` |
 
 ---
 

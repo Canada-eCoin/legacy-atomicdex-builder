@@ -87,6 +87,8 @@ $DesktopRepo = if ($env:DESKTOP_REPO) { $env:DESKTOP_REPO } else { $Sources.desk
 $DesktopCommit = if ($env:DESKTOP_COMMIT) { $env:DESKTOP_COMMIT } else { $Sources.desktop.commit }
 $LibwallyRepo = if ($env:LIBWALLY_REPO) { $env:LIBWALLY_REPO } else { $Sources.dependencies.libwally.repo }
 $LibwallyTag = if ($env:LIBWALLY_TAG) { $env:LIBWALLY_TAG } else { $Sources.dependencies.libwally.tag }
+$QtVersion = if ($env:QT_VERSION) { $env:QT_VERSION } else { $Sources.dependencies.qt.version }
+$QtWindowsArch = if ($env:QT_WINDOWS_ARCH) { $env:QT_WINDOWS_ARCH } else { $Sources.dependencies.qt.windows_arch }
 $AppName     = if ($env:APP_NAME) { $env:APP_NAME } else { "" }
 $AppWebsite  = if ($env:APP_WEBSITE) { $env:APP_WEBSITE } else { "" }
 $SeedUrl     = if ($env:SEED_URL) { $env:SEED_URL } else { "" }
@@ -717,8 +719,8 @@ function Build-Desktop {
     Copy-Item (Join-Path $OutputDir "kdf.exe") (Join-Path $kdfDest "kdf.exe") -Force
     OK "KDF staged at assets\tools\kdf\"
 
-    # Install Qt 5.15.2 via aqtinstall
-    Step "7/9" "Resolving Qt 5.15.2 + WebEngine..."
+    # Install Qt via aqtinstall
+    Step "7/9" "Resolving Qt $QtVersion + WebEngine..."
     $qtRoot = $null
 
     # 1. Check jurplel/install-qt-action result (CI)
@@ -733,8 +735,8 @@ function Build-Desktop {
     # 2. Check common install paths
     if (-not $qtRoot) {
         $qtCandidates = @(
-            "C:\Qt\5.15.2\msvc2019_64",
-            "C:\Qt\5.15.2\win64_msvc2019_64"
+            "C:\Qt\$QtVersion\msvc2019_64",
+            "C:\Qt\$QtVersion\$QtWindowsArch"
         )
         foreach ($candidate in $qtCandidates) {
             if (Test-Path (Join-Path $candidate "lib\cmake\Qt5\Qt5Config.cmake")) {
@@ -749,10 +751,10 @@ function Build-Desktop {
     if (-not $qtRoot) {
         Info "Qt not found, downloading via aqtinstall (~3GB one-time)..."
         pip install aqtinstall 2>&1 | Out-Null
-        aqt install-qt windows desktop 5.15.2 win64_msvc2019_64 -O "C:\Qt" 2>&1 | ForEach-Object { Info $_ }
+        aqt install-qt windows desktop $QtVersion $QtWindowsArch -O "C:\Qt" 2>&1 | ForEach-Object { Info $_ }
         aqt install-tool windows desktop tools_ifw 2>&1 | ForEach-Object { Info $_ }
-        $qtRoot = "C:\Qt\5.15.2\win64_msvc2019_64"
-        OK "Qt 5.15.2 installed at $qtRoot"
+        $qtRoot = "C:\Qt\$QtVersion\$QtWindowsArch"
+        OK "Qt $QtVersion installed at $qtRoot"
     }
 
 # Build libwally-core

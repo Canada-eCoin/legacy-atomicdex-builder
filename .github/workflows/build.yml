@@ -139,13 +139,21 @@ jobs:
       - name: Set up MSVC environment
         uses: ilammy/msvc-dev-cmd@v1
 
-      - name: Install Qt 5.15.2
+      - name: Read Qt pin
+        id: qt_pin
+        shell: powershell
+        run: |
+          $qt = (Get-Content 'config/sources.json' -Raw | ConvertFrom-Json).dependencies.qt
+          "version=$($qt.version)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "arch=$($qt.windows_arch)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Install Qt
         uses: jurplel/install-qt-action@v4
         with:
-          version: '5.15.2'
+          version: '${{ steps.qt_pin.outputs.version }}'
           host: 'windows'
           target: 'desktop'
-          arch: 'win64_msvc2019_64'
+          arch: '${{ steps.qt_pin.outputs.arch }}'
           dir: 'C:\'
           modules: 'qtcharts qtwebengine'
           tools: 'tools_ifw'
@@ -308,6 +316,8 @@ jobs:
           VCPKG_COMMIT=$(jq -r '.dependencies.vcpkg.commit' config/sources.json)
           LIBWALLY_REPO=$(jq -r '.dependencies.libwally.repo' config/sources.json)
           LIBWALLY_TAG=$(jq -r '.dependencies.libwally.tag' config/sources.json)
+          QT_REPO=$(jq -r '.dependencies.qt.repo' config/sources.json)
+          QT_VERSION=$(jq -r '.dependencies.qt.version' config/sources.json)
           BINARYEN_REPO=$(jq -r '.dependencies.binaryen.repo' config/sources.json)
           BINARYEN_TAG=$(jq -r '.dependencies.binaryen.tag' config/sources.json)
           LINUX_KDF_BASE_SOURCE=$(jq -r '.builder_bases.linux_kdf.source' config/sources.json)
@@ -328,7 +338,7 @@ jobs:
           echo "| Linux desktop builder base | [${LINUX_DESKTOP_BASE_SOURCE}](${LINUX_DESKTOP_BASE_URL}) | image tag | \`$LINUX_DESKTOP_BASE_TAG\` |" >> release-body.md
           echo "| WASM KDF builder base | [${WASM_KDF_BASE_SOURCE}](${WASM_KDF_BASE_URL}) | image tag | \`$WASM_KDF_BASE_TAG\` |" >> release-body.md
           echo "| libwally-core | [${LIBWALLY_REPO#https://}]($LIBWALLY_REPO) | git tag | \`$LIBWALLY_TAG\` |" >> release-body.md
-          echo "| Qt (win/mac) | [qt.io](https://download.qt.io/archive/qt/5.15/5.15.2/) | version | \`5.15.2\` |" >> release-body.md
+          echo "| Qt (win/mac) | [${QT_REPO#https://}]($QT_REPO) | version | \`$QT_VERSION\` |" >> release-body.md
           echo "| binaryen (WASM) | [${BINARYEN_REPO#https://}]($BINARYEN_REPO) | git tag | \`$BINARYEN_TAG\` |" >> release-body.md
           echo "" >> release-body.md
           echo "### Artifacts" >> release-body.md

@@ -102,7 +102,7 @@ BUILD_ARCH=""
 BUILD_RUST_TARGET=""
 BUILD_VCPKG_TRIPLET=""
 BUILD_CMAKE_OSX_ARCH=""
-QT_VERSION="5.15.2"
+QT_VERSION="${QT_VERSION:-}"
 
 append_unique() {
     local value="$1"
@@ -154,6 +154,9 @@ read_sources() {
     fi
     if [ -z "$DESKTOP_COMMIT" ]; then
         DESKTOP_COMMIT="$(jq -r '.desktop.commit' "$SOURCES_JSON")"
+    fi
+    if [ -z "$QT_VERSION" ]; then
+        QT_VERSION="$(jq -r '.dependencies.qt.version' "$SOURCES_JSON")"
     fi
     if [ -z "$LIBWALLY_REPO" ]; then
         LIBWALLY_REPO="$(jq -r '.dependencies.libwally.repo' "$SOURCES_JSON")"

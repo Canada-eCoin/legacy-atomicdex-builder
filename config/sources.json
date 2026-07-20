@@ -39,6 +39,11 @@
     "binaryen": {
       "repo": "https://github.com/WebAssembly/binaryen",
       "tag": "version_120"
+    },
+    "qt": {
+      "repo": "https://download.qt.io/archive/qt/5.15/5.15.2/",
+      "version": "5.15.2",
+      "windows_arch": "win64_msvc2019_64"
     }
   },
   "builder_bases": {
