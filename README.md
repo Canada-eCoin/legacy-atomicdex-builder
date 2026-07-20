@@ -435,10 +435,17 @@ See `env.sample` for all supported variables and platform-specific settings.
 
 Current source pins are in `config/sources.json`.
 
+### Primary upstream sources
+
 | Component | Source | Kind | Pin |
 | --- | --- | --- | --- |
 | KDF | `KomodoPlatform/komodo-defi-framework` | git commit | `30c877c5` |
 | Desktop | `cipig/komodo-wallet-desktop`, branch `nogeo` | git commit | `0d333c5` |
+
+### Supporting dependency revisions
+
+| Component | Source | Kind | Pin |
+| --- | --- | --- | --- |
 | Qaterial | `OlivierLDff/Qaterial` | git commit | `c2f32d2` |
 | Coin configs | `cipig/coins`, branch `nogeo` | git commit | `6d0db32` |
 | vcpkg baseline | `microsoft/vcpkg` | git commit | `36393d1ca008d0086488a9041afac26ed3b8edb9` |
