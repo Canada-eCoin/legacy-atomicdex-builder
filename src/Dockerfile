@@ -8,11 +8,11 @@
 #
 # Build args:
 #   PLATFORM=linux|mac|windows   (default: linux)
-#   KDF_BASE_IMAGE               from config/sources.json builder_bases.linux_kdf
-#   DESKTOP_BASE_IMAGE           from config/sources.json builder_bases.linux_desktop
+#   KDF_BASE_IMAGE               from config/toolchains.json builder_bases.linux_kdf
+#   DESKTOP_BASE_IMAGE           from config/toolchains.json builder_bases.linux_desktop
 #
 # Direct docker use should pass the two builder-base args explicitly.
-# The command wrapper reads them from config/sources.json automatically.
+# The command wrapper reads them from config/toolchains.json automatically.
 #
 # Layer strategy (top = stable, bottom = volatile):
 #   Each stage's first layers (apt, clone, fetch) cache permanently.

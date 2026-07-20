@@ -51,22 +51,27 @@ windows_powershell_runner() {
 }
 
 read_linux_builder_bases() {
-    local sources_json="${PROJECT_DIR}/config/sources.json"
-    if [ ! -f "$sources_json" ]; then
-        echo "ERROR: Missing config/sources.json" >&2
+    local toolchains_json="${PROJECT_DIR}/config/toolchains.json"
+    if [ ! -f "$toolchains_json" ]; then
+        echo "ERROR: Missing config/toolchains.json" >&2
         exit 1
     fi
-    KDF_BASE_IMAGE="${KDF_BASE_IMAGE:-$(jq -r '.builder_bases.linux_kdf.source + ":" + .builder_bases.linux_kdf.tag' "$sources_json")}"
-    DESKTOP_BASE_IMAGE="${DESKTOP_BASE_IMAGE:-$(jq -r '.builder_bases.linux_desktop.source + ":" + .builder_bases.linux_desktop.tag' "$sources_json")}"
+    KDF_BASE_IMAGE="${KDF_BASE_IMAGE:-$(jq -r '.builder_bases.linux_kdf.source + ":" + .builder_bases.linux_kdf.tag' "$toolchains_json")}"
+    DESKTOP_BASE_IMAGE="${DESKTOP_BASE_IMAGE:-$(jq -r '.builder_bases.linux_desktop.source + ":" + .builder_bases.linux_desktop.tag' "$toolchains_json")}"
 }
 
 read_wasm_builder_base() {
     local sources_json="${PROJECT_DIR}/config/sources.json"
+    local toolchains_json="${PROJECT_DIR}/config/toolchains.json"
     if [ ! -f "$sources_json" ]; then
         echo "ERROR: Missing config/sources.json" >&2
         exit 1
     fi
-    WASM_KDF_BASE_IMAGE="${WASM_KDF_BASE_IMAGE:-$(jq -r '.builder_bases.wasm_kdf.source + ":" + .builder_bases.wasm_kdf.tag' "$sources_json")}"
+    if [ ! -f "$toolchains_json" ]; then
+        echo "ERROR: Missing config/toolchains.json" >&2
+        exit 1
+    fi
+    WASM_KDF_BASE_IMAGE="${WASM_KDF_BASE_IMAGE:-$(jq -r '.builder_bases.wasm_kdf.source + ":" + .builder_bases.wasm_kdf.tag' "$toolchains_json")}"
     BINARYEN_REPO="${BINARYEN_REPO:-$(jq -r '.dependencies.binaryen.repo' "$sources_json")}"
     BINARYEN_TAG="${BINARYEN_TAG:-$(jq -r '.dependencies.binaryen.tag' "$sources_json")}"
 }

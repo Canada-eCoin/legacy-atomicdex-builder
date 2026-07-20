@@ -1,0 +1,25 @@
+{
+  "qt": {
+    "repo": "https://download.qt.io/archive/qt/5.15/5.15.2/",
+    "version": "5.15.2",
+    "windows_arch": "win64_msvc2019_64"
+  },
+  "builder_bases": {
+    "linux_kdf": {
+      "source": "docker.io/library/rust",
+      "url": "https://hub.docker.com/_/rust",
+      "tag": "1.84.0-bookworm"
+    },
+    "linux_desktop": {
+      "source": "docker.io/library/ubuntu",
+      "url": "https://hub.docker.com/_/ubuntu",
+      "tag": "22.04",
+      "note": "glibc 2.35"
+    },
+    "wasm_kdf": {
+      "source": "docker.io/library/rust",
+      "url": "https://hub.docker.com/_/rust",
+      "tag": "1.84.0-bookworm"
+    }
+  }
+}

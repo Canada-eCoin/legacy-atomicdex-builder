@@ -2,12 +2,12 @@
 # Usage: docker build -f src/Dockerfile.kdf-wasm -o output/wasm .
 #
 # Build args:
-#   WASM_KDF_BASE_IMAGE          from config/sources.json builder_bases.wasm_kdf
+#   WASM_KDF_BASE_IMAGE          from config/toolchains.json builder_bases.wasm_kdf
 #   BINARYEN_REPO                from config/sources.json dependencies.binaryen.repo
 #   BINARYEN_TAG                 from config/sources.json dependencies.binaryen.tag
 #
 # Direct docker use should pass these args explicitly.
-# The command wrapper reads them from config/sources.json automatically.
+# The command wrapper reads them from config/toolchains.json + config/sources.json automatically.
 #
 # Layer strategy (top = stable, bottom = volatile):
 #   [1] apt deps + wasm-pack — rebuilds only when Dockerfile changes

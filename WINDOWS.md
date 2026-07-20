@@ -81,7 +81,7 @@ git clone https://github.com/Canada-eCoin/legacy-atomicdex-builder.git
 cd legacy-atomicdex-builder
 ```
 
-The pinned source and toolchain revisions live in `config/sources.json`:
+The pinned source revisions live in `config/sources.json`:
 
 | Component | Repo | Kind | Pin |
 |-----------|------|------|-----|
@@ -91,6 +91,12 @@ The pinned source and toolchain revisions live in `config/sources.json`:
 | Coins config | `cipig/coins` (branch `nogeo`) | git commit | `6d0db32` |
 | vcpkg baseline | `microsoft/vcpkg` | git commit | `36393d1ca008d0086488a9041afac26ed3b8edb9` |
 | libwally-core | `ElementsProject/libwally-core` | git tag | `release_0.9.2` |
+| binaryen | `WebAssembly/binaryen` | git tag | `version_120` |
+
+The pinned toolchain revisions live in `config/toolchains.json`:
+
+| Component | Repo | Kind | Pin |
+|-----------|------|------|-----|
 | Qt (win/mac) | `download.qt.io/archive/qt/5.15/5.15.2/` | version | `5.15.2` |
 
 ---

@@ -26,6 +26,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="${SCRIPT_DIR}/.."
 CONFIG_DIR="${PROJECT_DIR}/config"
 SOURCES_JSON="${CONFIG_DIR}/sources.json"
+TOOLCHAINS_JSON="${CONFIG_DIR}/toolchains.json"
 
 FLAG_YES=false
 FLAG_KDF_ONLY=false
@@ -142,6 +143,7 @@ host_setup() {
 
 read_sources() {
     [ -f "$SOURCES_JSON" ] || die "Missing sources config: $SOURCES_JSON"
+    [ -f "$TOOLCHAINS_JSON" ] || die "Missing toolchains config: $TOOLCHAINS_JSON"
 
     if [ -z "$KDF_REPO" ]; then
         KDF_REPO="$(jq -r '.kdf.repo' "$SOURCES_JSON")"
@@ -156,7 +158,7 @@ read_sources() {
         DESKTOP_COMMIT="$(jq -r '.desktop.commit' "$SOURCES_JSON")"
     fi
     if [ -z "$QT_VERSION" ]; then
-        QT_VERSION="$(jq -r '.dependencies.qt.version' "$SOURCES_JSON")"
+        QT_VERSION="$(jq -r '.qt.version' "$TOOLCHAINS_JSON")"
     fi
     if [ -z "$LIBWALLY_REPO" ]; then
         LIBWALLY_REPO="$(jq -r '.dependencies.libwally.repo' "$SOURCES_JSON")"

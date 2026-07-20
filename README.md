@@ -204,12 +204,12 @@ full walkthrough in [WINDOWS.md](./WINDOWS.md).
 Docker is the clean-room path for Linux artifacts. The Dockerfile lives at
 `src/Dockerfile`, so direct Docker commands must pass `-f src/Dockerfile`.
 macOS and Windows default to their native build scripts in auto mode.
-Builder base images are pinned in `config/sources.json`, so direct Docker use
+Builder base images are pinned in `config/toolchains.json`, so direct Docker use
 should derive and pass them explicitly:
 
 ```bash
-export KDF_BASE_IMAGE="$(jq -r '.builder_bases.linux_kdf.source + ":" + .builder_bases.linux_kdf.tag' config/sources.json)"
-export DESKTOP_BASE_IMAGE="$(jq -r '.builder_bases.linux_desktop.source + ":" + .builder_bases.linux_desktop.tag' config/sources.json)"
+export KDF_BASE_IMAGE="$(jq -r '.builder_bases.linux_kdf.source + ":" + .builder_bases.linux_kdf.tag' config/toolchains.json)"
+export DESKTOP_BASE_IMAGE="$(jq -r '.builder_bases.linux_desktop.source + ":" + .builder_bases.linux_desktop.tag' config/toolchains.json)"
 
 # KDF only
 docker build --build-arg KDF_BASE_IMAGE="$KDF_BASE_IMAGE" --build-arg DESKTOP_BASE_IMAGE="$DESKTOP_BASE_IMAGE" \
@@ -236,7 +236,7 @@ docker build --build-arg KDF_BASE_IMAGE="$KDF_BASE_IMAGE" --build-arg DESKTOP_BA
 WASM uses a separate Dockerfile:
 
 ```bash
-export WASM_KDF_BASE_IMAGE="$(jq -r '.builder_bases.wasm_kdf.source + ":" + .builder_bases.wasm_kdf.tag' config/sources.json)"
+export WASM_KDF_BASE_IMAGE="$(jq -r '.builder_bases.wasm_kdf.source + ":" + .builder_bases.wasm_kdf.tag' config/toolchains.json)"
 export BINARYEN_REPO="$(jq -r '.dependencies.binaryen.repo' config/sources.json)"
 export BINARYEN_TAG="$(jq -r '.dependencies.binaryen.tag' config/sources.json)"
 
@@ -434,7 +434,7 @@ See `env.sample` for all supported variables and platform-specific settings.
 
 ## Source pins
 
-Current source and toolchain pins are in `config/sources.json`.
+Current source pins are in `config/sources.json`.
 
 | Component | Source | Kind | Pin |
 | --- | --- | --- | --- |
@@ -444,8 +444,15 @@ Current source and toolchain pins are in `config/sources.json`.
 | Coin configs | `cipig/coins`, branch `nogeo` | git commit | `6d0db32` |
 | vcpkg baseline | `microsoft/vcpkg` | git commit | `36393d1ca008d0086488a9041afac26ed3b8edb9` |
 | libwally-core | `ElementsProject/libwally-core` | git tag | `release_0.9.2` |
-| Qt (win/mac) | `download.qt.io/archive/qt/5.15/5.15.2/` | version | `5.15.2` |
 | binaryen | `WebAssembly/binaryen` | git tag | `version_120` |
+
+## Toolchain pins
+
+Current toolchain and builder-base pins are in `config/toolchains.json`.
+
+| Component | Source | Kind | Pin |
+| --- | --- | --- | --- |
+| Qt (win/mac) | `download.qt.io/archive/qt/5.15/5.15.2/` | version | `5.15.2` |
 | Linux KDF builder base | `docker.io/library/rust` | image tag | `1.84.0-bookworm` |
 | Linux desktop builder base | `docker.io/library/ubuntu` | image tag | `22.04 (glibc 2.35)` |
 | WASM KDF builder base | `docker.io/library/rust` | image tag | `1.84.0-bookworm` |
@@ -462,7 +469,8 @@ atomicdex-legacy-builder/
 │   ├── build/command.sh         main entry point
 │   └── trigger-ci/command.sh    dispatch GitHub Actions builds
 ├── config/
-│   └── sources.json             pinned upstream repos and commits
+│   ├── sources.json             pinned upstream repos and dependency revisions
+│   └── toolchains.json          pinned Qt + Docker builder-base versions
 ├── src/
 │   ├── build-linux.sh           native Linux build
 │   ├── build-mac.sh             macOS build dispatcher
@@ -488,8 +496,9 @@ atomicdex-legacy-builder/
 
 - **Native first:** platform scripts are the source of truth; Docker wraps the
   Linux path for clean-room builds.
-- **Pinned inputs:** upstream repos and commits are declared in
-  `config/sources.json`.
+- **Pinned inputs:** upstream repos and dependency revisions live in
+  `config/sources.json`; toolchain and builder-base pins live in
+  `config/toolchains.json`.
 - **Patch, do not fork:** local changes should live as numbered patches in
   `config/patches/` when a source delta is needed.
 - **Human-readable failure:** scripts explain missing tools and suggested fixes.

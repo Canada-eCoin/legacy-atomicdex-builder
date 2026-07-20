@@ -74,6 +74,7 @@ $OutputDir    = Join-Path $ProjectDir "output\windows"
 $LogDir       = Join-Path $ProjectDir "logs\windows"
 $BuildDir     = Join-Path $ProjectDir ".build"
 $SourcesJson  = Join-Path $ConfigDir "sources.json"
+$ToolchainsJson = Join-Path $ConfigDir "toolchains.json"
 $InstalledLog = Join-Path $LogDir "installed.log"
 
 # Create directories
@@ -81,14 +82,15 @@ New-Item -ItemType Directory -Force -Path $OutputDir, $LogDir, $BuildDir | Out-N
 
 # ── Read config (ENV vars override config files) ──────────────
 $Sources  = Get-Content $SourcesJson -Raw | ConvertFrom-Json
+$Toolchains = Get-Content $ToolchainsJson -Raw | ConvertFrom-Json
 $KdfRepo     = if ($env:KDF_REPO) { $env:KDF_REPO } else { $Sources.kdf.repo }
 $KdfCommit   = if ($env:KDF_COMMIT) { $env:KDF_COMMIT } else { $Sources.kdf.commit }
 $DesktopRepo = if ($env:DESKTOP_REPO) { $env:DESKTOP_REPO } else { $Sources.desktop.repo }
 $DesktopCommit = if ($env:DESKTOP_COMMIT) { $env:DESKTOP_COMMIT } else { $Sources.desktop.commit }
 $LibwallyRepo = if ($env:LIBWALLY_REPO) { $env:LIBWALLY_REPO } else { $Sources.dependencies.libwally.repo }
 $LibwallyTag = if ($env:LIBWALLY_TAG) { $env:LIBWALLY_TAG } else { $Sources.dependencies.libwally.tag }
-$QtVersion = if ($env:QT_VERSION) { $env:QT_VERSION } else { $Sources.dependencies.qt.version }
-$QtWindowsArch = if ($env:QT_WINDOWS_ARCH) { $env:QT_WINDOWS_ARCH } else { $Sources.dependencies.qt.windows_arch }
+$QtVersion = if ($env:QT_VERSION) { $env:QT_VERSION } else { $Toolchains.qt.version }
+$QtWindowsArch = if ($env:QT_WINDOWS_ARCH) { $env:QT_WINDOWS_ARCH } else { $Toolchains.qt.windows_arch }
 $AppName     = if ($env:APP_NAME) { $env:APP_NAME } else { "" }
 $AppWebsite  = if ($env:APP_WEBSITE) { $env:APP_WEBSITE } else { "" }
 $SeedUrl     = if ($env:SEED_URL) { $env:SEED_URL } else { "" }
