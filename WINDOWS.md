@@ -81,14 +81,15 @@ git clone https://github.com/Canada-eCoin/legacy-atomicdex-builder.git
 cd legacy-atomicdex-builder
 ```
 
-The pinned commits live in `config/sources.json`:
+The pinned source revisions live in `config/sources.json`:
 
-| Component | Repo | Commit |
-|-----------|------|--------|
-| KDF | `KomodoPlatform/komodo-defi-framework` | `30c877c5` |
-| Desktop wallet | `cipig/komodo-wallet-desktop` | `0d333c5` |
-| Coins config | `cipig/coins` (branch `nogeo`) | `6d0db32` |
-| vcpkg baseline | `microsoft/vcpkg` | `36393d1ca008d0086488a9041afac26ed3b8edb9` |
+| Component | Repo | Kind | Pin |
+|-----------|------|------|-----|
+| KDF | `KomodoPlatform/komodo-defi-framework` | git commit | `30c877c5` |
+| Desktop wallet | `cipig/komodo-wallet-desktop` | git commit | `0d333c5` |
+| Coins config | `cipig/coins` (branch `nogeo`) | git commit | `6d0db32` |
+| vcpkg baseline | `microsoft/vcpkg` | git commit | `36393d1ca008d0086488a9041afac26ed3b8edb9` |
+| libwally-core | `ElementsProject/libwally-core` | git tag | `release_0.9.2` |
 
 ---
 

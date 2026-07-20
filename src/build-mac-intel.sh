@@ -67,6 +67,8 @@ KDF_REPO="${KDF_REPO:-}"
 KDF_COMMIT="${KDF_COMMIT:-}"
 DESKTOP_REPO="${DESKTOP_REPO:-}"
 DESKTOP_COMMIT="${DESKTOP_COMMIT:-}"
+LIBWALLY_REPO="${LIBWALLY_REPO:-}"
+LIBWALLY_TAG="${LIBWALLY_TAG:-}"
 
 mkdir -p "$OUTPUT_DIR" "$LOG_DIR" "$BUILD_ROOT" "$SDK_ROOT" "$LOCAL_PREFIX"
 export PATH="$HOME/.cargo/bin:$PATH"
@@ -152,6 +154,12 @@ read_sources() {
     fi
     if [ -z "$DESKTOP_COMMIT" ]; then
         DESKTOP_COMMIT="$(jq -r '.desktop.commit' "$SOURCES_JSON")"
+    fi
+    if [ -z "$LIBWALLY_REPO" ]; then
+        LIBWALLY_REPO="$(jq -r '.dependencies.libwally.repo' "$SOURCES_JSON")"
+    fi
+    if [ -z "$LIBWALLY_TAG" ]; then
+        LIBWALLY_TAG="$(jq -r '.dependencies.libwally.tag' "$SOURCES_JSON")"
     fi
 }
 
@@ -637,14 +645,14 @@ build_libwally() {
         (
             cd "$libwally_dir"
             git fetch origin --tags
-            git checkout release_0.9.2
-            git reset --hard release_0.9.2
+            git checkout "$LIBWALLY_TAG"
+            git reset --hard "$LIBWALLY_TAG"
             git clean -fdx
             git submodule sync --recursive
             git submodule update --init --recursive
         )
     else
-        git clone --recurse-submodules --branch release_0.9.2 https://github.com/ElementsProject/libwally-core "$libwally_dir"
+        git clone --recurse-submodules --branch "$LIBWALLY_TAG" "$LIBWALLY_REPO" "$libwally_dir"
     fi
 
     (

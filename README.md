@@ -438,6 +438,7 @@ Current pins are in `config/sources.json`.
 | Desktop | `cipig/komodo-wallet-desktop`, branch `nogeo` | git commit | `0d333c5` |
 | Coin configs | `cipig/coins`, branch `nogeo` | git commit | `6d0db32` |
 | vcpkg baseline | `microsoft/vcpkg` | git commit | `36393d1ca008d0086488a9041afac26ed3b8edb9` |
+| libwally-core | `ElementsProject/libwally-core` | git tag | `release_0.9.2` |
 | Linux KDF builder base | `docker.io/library/rust` | image tag | `1.84.0-bookworm` |
 | Linux desktop builder base | `docker.io/library/ubuntu` | image tag | `22.04 (glibc 2.35)` |
 | WASM KDF builder base | `docker.io/library/rust` | image tag | `1.84.0-bookworm` |

@@ -306,6 +306,8 @@ jobs:
           COINS_COMMIT=$(jq -r '.dependencies.coin_configs.commit' config/sources.json)
           VCPKG_REPO=$(jq -r '.dependencies.vcpkg.repo' config/sources.json)
           VCPKG_COMMIT=$(jq -r '.dependencies.vcpkg.commit' config/sources.json)
+          LIBWALLY_REPO=$(jq -r '.dependencies.libwally.repo' config/sources.json)
+          LIBWALLY_TAG=$(jq -r '.dependencies.libwally.tag' config/sources.json)
           LINUX_KDF_BASE_SOURCE=$(jq -r '.builder_bases.linux_kdf.source' config/sources.json)
           LINUX_KDF_BASE_URL=$(jq -r '.builder_bases.linux_kdf.url' config/sources.json)
           LINUX_KDF_BASE_TAG=$(jq -r '.builder_bases.linux_kdf.tag' config/sources.json)
@@ -323,7 +325,7 @@ jobs:
           echo "| Linux KDF builder base | [${LINUX_KDF_BASE_SOURCE}](${LINUX_KDF_BASE_URL}) | image tag | \`$LINUX_KDF_BASE_TAG\` |" >> release-body.md
           echo "| Linux desktop builder base | [${LINUX_DESKTOP_BASE_SOURCE}](${LINUX_DESKTOP_BASE_URL}) | image tag | \`$LINUX_DESKTOP_BASE_TAG\` |" >> release-body.md
           echo "| WASM KDF builder base | [${WASM_KDF_BASE_SOURCE}](${WASM_KDF_BASE_URL}) | image tag | \`$WASM_KDF_BASE_TAG\` |" >> release-body.md
-          echo "| libwally-core | [github.com/ElementsProject/libwally-core](https://github.com/ElementsProject/libwally-core) | git tag | \`release_0.9.2\` |" >> release-body.md
+          echo "| libwally-core | [${LIBWALLY_REPO#https://}]($LIBWALLY_REPO) | git tag | \`$LIBWALLY_TAG\` |" >> release-body.md
           echo "| Qt (win/mac) | [qt.io](https://download.qt.io/archive/qt/5.15/5.15.2/) | version | \`5.15.2\` |" >> release-body.md
           echo "| binaryen (WASM) | [github.com/WebAssembly/binaryen](https://github.com/WebAssembly/binaryen) | git tag | \`version_120\` |" >> release-body.md
           echo "" >> release-body.md

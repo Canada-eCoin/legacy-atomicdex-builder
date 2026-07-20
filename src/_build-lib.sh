@@ -35,6 +35,8 @@ read_sources() {
     KDF_COMMIT="${KDF_COMMIT:-$(jq -r '.kdf.commit' "$SOURCES_JSON")}"
     DESKTOP_REPO="${DESKTOP_REPO:-$(jq -r '.desktop.repo' "$SOURCES_JSON")}"
     DESKTOP_COMMIT="${DESKTOP_COMMIT:-$(jq -r '.desktop.commit' "$SOURCES_JSON")}"
+    LIBWALLY_REPO="${LIBWALLY_REPO:-$(jq -r '.dependencies.libwally.repo' "$SOURCES_JSON")}"
+    LIBWALLY_TAG="${LIBWALLY_TAG:-$(jq -r '.dependencies.libwally.tag' "$SOURCES_JSON")}"
 }
 
 
@@ -99,8 +101,8 @@ ensure_libwally() {
         return 0
     fi
     step "building libwally"
-    git clone https://github.com/ElementsProject/libwally-core \
-        --recurse-submodules -b release_0.9.2 /tmp/libwally-core 2>/dev/null || true
+    git clone "$LIBWALLY_REPO" \
+        --recurse-submodules -b "$LIBWALLY_TAG" /tmp/libwally-core 2>/dev/null || true
     cd /tmp/libwally-core
     ./tools/autogen.sh
     python3 -m pip install --user setuptools 2>/dev/null || true

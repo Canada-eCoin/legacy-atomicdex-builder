@@ -115,9 +115,11 @@ RUN DESKTOP_REPO=$(jq -r '.desktop.repo' /tmp/cfg/sources.json) && \
     git checkout "$DESKTOP_COMMIT" && \
     git submodule update --init --recursive
 
-# Build libwally — only rebuilds when Dockerfile changes
-RUN git clone https://github.com/ElementsProject/libwally-core \
-        --recurse-submodules -b release_0.9.2 /tmp/libwally-core && \
+# Build libwally — only rebuilds when sources.json or Dockerfile changes
+RUN LIBWALLY_REPO=$(jq -r '.dependencies.libwally.repo' /tmp/cfg/sources.json) && \
+    LIBWALLY_TAG=$(jq -r '.dependencies.libwally.tag' /tmp/cfg/sources.json) && \
+    git clone "$LIBWALLY_REPO" \
+        --recurse-submodules -b "$LIBWALLY_TAG" /tmp/libwally-core && \
     cd /tmp/libwally-core && \
     ./tools/autogen.sh && \
     python3 -m pip install --user setuptools 2>/dev/null || true && \

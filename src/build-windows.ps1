@@ -85,6 +85,8 @@ $KdfRepo     = if ($env:KDF_REPO) { $env:KDF_REPO } else { $Sources.kdf.repo }
 $KdfCommit   = if ($env:KDF_COMMIT) { $env:KDF_COMMIT } else { $Sources.kdf.commit }
 $DesktopRepo = if ($env:DESKTOP_REPO) { $env:DESKTOP_REPO } else { $Sources.desktop.repo }
 $DesktopCommit = if ($env:DESKTOP_COMMIT) { $env:DESKTOP_COMMIT } else { $Sources.desktop.commit }
+$LibwallyRepo = if ($env:LIBWALLY_REPO) { $env:LIBWALLY_REPO } else { $Sources.dependencies.libwally.repo }
+$LibwallyTag = if ($env:LIBWALLY_TAG) { $env:LIBWALLY_TAG } else { $Sources.dependencies.libwally.tag }
 $AppName     = if ($env:APP_NAME) { $env:APP_NAME } else { "" }
 $AppWebsite  = if ($env:APP_WEBSITE) { $env:APP_WEBSITE } else { "" }
 $SeedUrl     = if ($env:SEED_URL) { $env:SEED_URL } else { "" }
@@ -759,7 +761,7 @@ function Build-Desktop {
     $libwallyDir = Join-Path $desktopDir "libwally-core"
     if (-not (Test-Path (Join-Path $libwallyDir ".git"))) {
         Remove-Item -Recurse -Force $libwallyDir -ErrorAction SilentlyContinue
-        $lwc = Invoke-GitLogged -Arguments @('clone', '--recurse-submodules', '-b', 'release_0.9.2', 'https://github.com/ElementsProject/libwally-core', $libwallyDir) -StepLabel 'libwally-clone'
+        $lwc = Invoke-GitLogged -Arguments @('clone', '--recurse-submodules', '-b', $LibwallyTag, $LibwallyRepo, $libwallyDir) -StepLabel 'libwally-clone'
         if ($lwc.ExitCode -ne 0) { Fail "libwally clone failed"; exit 1 }
     }
     Push-Location $libwallyDir
