@@ -237,8 +237,12 @@ WASM uses a separate Dockerfile:
 
 ```bash
 export WASM_KDF_BASE_IMAGE="$(jq -r '.builder_bases.wasm_kdf.source + ":" + .builder_bases.wasm_kdf.tag' config/sources.json)"
+export BINARYEN_REPO="$(jq -r '.dependencies.binaryen.repo' config/sources.json)"
+export BINARYEN_TAG="$(jq -r '.dependencies.binaryen.tag' config/sources.json)"
 
 docker build --build-arg WASM_KDF_BASE_IMAGE="$WASM_KDF_BASE_IMAGE" \
+  --build-arg BINARYEN_REPO="$BINARYEN_REPO" \
+  --build-arg BINARYEN_TAG="$BINARYEN_TAG" \
   -f src/Dockerfile.kdf-wasm \
   -o output/wasm \
   .
@@ -439,6 +443,7 @@ Current pins are in `config/sources.json`.
 | Coin configs | `cipig/coins`, branch `nogeo` | git commit | `6d0db32` |
 | vcpkg baseline | `microsoft/vcpkg` | git commit | `36393d1ca008d0086488a9041afac26ed3b8edb9` |
 | libwally-core | `ElementsProject/libwally-core` | git tag | `release_0.9.2` |
+| binaryen | `WebAssembly/binaryen` | git tag | `version_120` |
 | Linux KDF builder base | `docker.io/library/rust` | image tag | `1.84.0-bookworm` |
 | Linux desktop builder base | `docker.io/library/ubuntu` | image tag | `22.04 (glibc 2.35)` |
 | WASM KDF builder base | `docker.io/library/rust` | image tag | `1.84.0-bookworm` |

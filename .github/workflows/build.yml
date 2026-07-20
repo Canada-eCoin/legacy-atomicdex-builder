@@ -308,6 +308,8 @@ jobs:
           VCPKG_COMMIT=$(jq -r '.dependencies.vcpkg.commit' config/sources.json)
           LIBWALLY_REPO=$(jq -r '.dependencies.libwally.repo' config/sources.json)
           LIBWALLY_TAG=$(jq -r '.dependencies.libwally.tag' config/sources.json)
+          BINARYEN_REPO=$(jq -r '.dependencies.binaryen.repo' config/sources.json)
+          BINARYEN_TAG=$(jq -r '.dependencies.binaryen.tag' config/sources.json)
           LINUX_KDF_BASE_SOURCE=$(jq -r '.builder_bases.linux_kdf.source' config/sources.json)
           LINUX_KDF_BASE_URL=$(jq -r '.builder_bases.linux_kdf.url' config/sources.json)
           LINUX_KDF_BASE_TAG=$(jq -r '.builder_bases.linux_kdf.tag' config/sources.json)
@@ -327,7 +329,7 @@ jobs:
           echo "| WASM KDF builder base | [${WASM_KDF_BASE_SOURCE}](${WASM_KDF_BASE_URL}) | image tag | \`$WASM_KDF_BASE_TAG\` |" >> release-body.md
           echo "| libwally-core | [${LIBWALLY_REPO#https://}]($LIBWALLY_REPO) | git tag | \`$LIBWALLY_TAG\` |" >> release-body.md
           echo "| Qt (win/mac) | [qt.io](https://download.qt.io/archive/qt/5.15/5.15.2/) | version | \`5.15.2\` |" >> release-body.md
-          echo "| binaryen (WASM) | [github.com/WebAssembly/binaryen](https://github.com/WebAssembly/binaryen) | git tag | \`version_120\` |" >> release-body.md
+          echo "| binaryen (WASM) | [${BINARYEN_REPO#https://}]($BINARYEN_REPO) | git tag | \`$BINARYEN_TAG\` |" >> release-body.md
           echo "" >> release-body.md
           echo "### Artifacts" >> release-body.md
           echo "" >> release-body.md

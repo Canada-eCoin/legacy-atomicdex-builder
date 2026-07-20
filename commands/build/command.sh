@@ -67,6 +67,8 @@ read_wasm_builder_base() {
         exit 1
     fi
     WASM_KDF_BASE_IMAGE="${WASM_KDF_BASE_IMAGE:-$(jq -r '.builder_bases.wasm_kdf.source + ":" + .builder_bases.wasm_kdf.tag' "$sources_json")}"
+    BINARYEN_REPO="${BINARYEN_REPO:-$(jq -r '.dependencies.binaryen.repo' "$sources_json")}"
+    BINARYEN_TAG="${BINARYEN_TAG:-$(jq -r '.dependencies.binaryen.tag' "$sources_json")}"
 }
 
 # ── Parse args ───────────────────────────────────────────────
@@ -250,6 +252,8 @@ if [ "$MODE" = "docker" ]; then
             "${CACHE_FLAGS[@]}" \
             --build-arg "PLATFORM=${PLATFORM}" \
             --build-arg "WASM_KDF_BASE_IMAGE=${WASM_KDF_BASE_IMAGE}" \
+            --build-arg "BINARYEN_REPO=${BINARYEN_REPO}" \
+            --build-arg "BINARYEN_TAG=${BINARYEN_TAG}" \
             -f src/Dockerfile.kdf-wasm \
             -o "$OUT" \
             . 2>&1 | stdbuf -oL tee "$LOGFILE"

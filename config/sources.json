@@ -35,6 +35,10 @@
     "libwally": {
       "repo": "https://github.com/ElementsProject/libwally-core",
       "tag": "release_0.9.2"
+    },
+    "binaryen": {
+      "repo": "https://github.com/WebAssembly/binaryen",
+      "tag": "version_120"
     }
   },
   "builder_bases": {

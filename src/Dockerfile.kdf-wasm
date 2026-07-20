@@ -3,9 +3,11 @@
 #
 # Build args:
 #   WASM_KDF_BASE_IMAGE          from config/sources.json builder_bases.wasm_kdf
+#   BINARYEN_REPO                from config/sources.json dependencies.binaryen.repo
+#   BINARYEN_TAG                 from config/sources.json dependencies.binaryen.tag
 #
-# Direct docker use should pass the builder-base arg explicitly.
-# The command wrapper reads it from config/sources.json automatically.
+# Direct docker use should pass these args explicitly.
+# The command wrapper reads them from config/sources.json automatically.
 #
 # Layer strategy (top = stable, bottom = volatile):
 #   [1] apt deps + wasm-pack — rebuilds only when Dockerfile changes
@@ -19,6 +21,8 @@
 #   output/wasm/package.json
 
 ARG WASM_KDF_BASE_IMAGE
+ARG BINARYEN_REPO
+ARG BINARYEN_TAG
 FROM ${WASM_KDF_BASE_IMAGE}
 
 ENV DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC
@@ -29,9 +33,9 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install newer binaryen (wasm-opt); apt version is too old for KDF WASM features
-RUN curl -L https://github.com/WebAssembly/binaryen/releases/download/version_120/binaryen-version_120-x86_64-linux.tar.gz | tar xz -C /tmp && \
-    cp /tmp/binaryen-version_120/bin/wasm-opt /usr/bin/wasm-opt && \
-    rm -rf /tmp/binaryen-version_120
+RUN curl -L "${BINARYEN_REPO}/releases/download/${BINARYEN_TAG}/binaryen-${BINARYEN_TAG}-x86_64-linux.tar.gz" | tar xz -C /tmp && \
+    cp "/tmp/binaryen-${BINARYEN_TAG}/bin/wasm-opt" /usr/bin/wasm-opt && \
+    rm -rf "/tmp/binaryen-${BINARYEN_TAG}"
 
 # ── [1] wasm-pack + WASM target ────────────────────────────
 RUN curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
