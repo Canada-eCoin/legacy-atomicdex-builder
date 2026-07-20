@@ -1,7 +1,8 @@
 # Native Windows Build Guide — AtomicDEX Legacy
 
 > **Status: Working / tested.** Full KDF + desktop wallet build confirmed on
-> Windows 10+ x86_64 with VS Build Tools 2022 and Qt 5.15.2.
+> Windows 10+ x86_64 with VS Build Tools 2022 and the Qt pin currently carried
+> in `config/toolchains.json` (`5.15.2` at time of writing).
 
 This document describes how to reproduce a full native Windows build of the
 AtomicDEX Legacy stack (KDF engine + Desktop Wallet) from first principles.
@@ -23,7 +24,7 @@ same process as `ci_tools_atomic_dex/ci_scripts/windows_script.ps1` (CIPIG CI).
 | **LLVM/Clang** | 22.x | Ninja generator / linker | `scoop install llvm ninja` |
 | **Protobuf** | 35.x | KDF protobuf codegen | `winget install Google.Protobuf` |
 | **Python** | 3.x | vcpkg bootstrap | `scoop install python` |
-| **Qt 5.15.2** | MSVC 2019 64-bit | desktop UI framework | (manual download) |
+| **Qt** | `config/toolchains.json` (currently `5.15.2`) | desktop UI framework | (manual download) |
 | **7zip** | any | archive extraction | `scoop install 7zip` |
 
 ### MSVC — manual step (largest download)
@@ -41,22 +42,33 @@ same process as `ci_tools_atomic_dex/ci_scripts/windows_script.ps1` (CIPIG CI).
    ```
    Should print a path like `C:\Program Files (x86)\Microsoft Visual Studio\2022\BuildTools`.
 
-### Qt 5.15.2 — manual step
+### Qt — manual step
 
-The legacy desktop wallet requires **Qt 5.15.2 for MSVC 2019 64-bit** plus
-the `qtcharts` and `qtwebengine` modules.
+The legacy desktop wallet requires the **pinned Qt version from**
+`config/toolchains.json` plus the `qtcharts` and `qtwebengine` modules.
 
-1. Go to https://download.qt.io/archive/qt/5.15/5.15.2/
-2. Download `qt-opensource-windows-x86-msvc2019_64-5.15.2.exe`
-3. Run the installer.  Select:
-   - **Qt 5.15.2** → **MSVC 2019 64-bit**
-   - Under that node check: `Qt Charts`, `Qt WebEngine`, `Qt WebEngine` (WebEngine itself)
-4. Install to `C:\Qt\5.15.2\msvc2019_64`
+Load the current Qt pin first:
 
-**Friction**: Qt does not offer a command-line installer for 5.15.2 anymore;
-you need to use the Qt Online Installer or the standalone offline installer.
-The online installer hides older versions — you need an Qt Account (free) and
-must check "Archive" in the filter to see 5.15.x.
+```powershell
+$Toolchains = Get-Content .\config\toolchains.json -Raw | ConvertFrom-Json
+$QtVersion = $Toolchains.qt.version
+$QtWindowsArch = $Toolchains.qt.windows_arch
+$QtArchive = $Toolchains.qt.repo
+```
+
+1. Go to `$QtArchive`
+2. Download the installer/archive that matches `$QtVersion` and the Windows
+   desktop target `$QtWindowsArch`
+3. Run the installer. Select the pinned Qt version and include:
+   - `Qt Charts`
+   - `Qt WebEngine`
+4. Install under `C:\Qt\$QtVersion\...` so the script can resolve the same
+   root it expects in CI fallback mode
+
+**Friction**: Qt does not offer a stable command-line installer for these older
+archive builds anymore; you may need the Qt Online Installer, an archived
+offline installer, or to let `src/build-windows.ps1` / CI resolve Qt via
+`aqtinstall` from the same pinned version.
 
 ### Rust targets
 
@@ -105,6 +117,24 @@ The pinned toolchain revisions live in `config/toolchains.json`:
 | Component | Repo | Kind | Pin |
 |-----------|------|------|-----|
 | Qt (win/mac) | `download.qt.io/archive/qt/5.15/5.15.2/` | version | `5.15.2` |
+
+For manual reproduction, load the pinned values once and reuse them through the
+examples below:
+
+```powershell
+$Sources = Get-Content .\config\sources.json -Raw | ConvertFrom-Json
+$Toolchains = Get-Content .\config\toolchains.json -Raw | ConvertFrom-Json
+
+$DesktopRepo = $Sources.desktop.repo
+$DesktopCommit = $Sources.desktop.commit
+$VcpkgBaseline = $Sources.dependencies.vcpkg.commit
+$LibwallyRepo = $Sources.dependencies.libwally.repo
+$LibwallyTag = $Sources.dependencies.libwally.tag
+$QtVersion = $Toolchains.qt.version
+$QtWindowsArch = $Toolchains.qt.windows_arch
+$QtArchive = $Toolchains.qt.repo
+$QtRoot = "C:/Qt/$QtVersion/$QtWindowsArch"
+```
 
 ---
 
@@ -166,10 +196,13 @@ New-Item -ItemType Directory -Force -Path "$BuildDir\atomic_defi_design\assets\i
 New-Item -ItemType Directory -Force -Path "$BuildDir\assets\config"
 New-Item -ItemType Directory -Force -Path "$BuildDir\assets\tools\kdf"
 
-# Clone desktop wallet
-git clone https://github.com/cipig/komodo-wallet-desktop -b nogeo "$BuildDir"
+# Clone desktop wallet at the pinned repo + commit
+if (-not (Test-Path "$BuildDir\.git")) {
+  git clone $DesktopRepo "$BuildDir"
+}
 cd "$BuildDir"
-git checkout 0d333c5
+git fetch origin
+git checkout $DesktopCommit
 git submodule update --init --recursive
 
 # Copy KDF binary
@@ -188,10 +221,11 @@ if (-not (Test-Path "$VcpkgDir\.git")) {
 & "$VcpkgDir\bootstrap-vcpkg.bat" -disableMetrics
 ```
 
-**Friction**: The vcpkg baseline is pinned to commit `36393d1` in
-`vcpkg.json`.  Bootstrapping checks out the *latest* vcpkg, not the baseline.
-The baseline only affects which *port version* is resolved — the vcpkg tool
-itself can be newer.
+**Friction**: The vcpkg baseline is pinned in the desktop wallet's
+`vcpkg.json` and mirrored in `config/sources.json` as `$VcpkgBaseline`
+(currently `36393d1ca008d0086488a9041afac26ed3b8edb9`). Bootstrapping still
+checks out the *latest* vcpkg tool; the pinned baseline only controls which
+port revisions are resolved.
 
 ### 3.3 — Custom vcpkg triplet
 
@@ -224,8 +258,8 @@ The overlay ports live at `ci_tools_atomic_dex/vcpkg-custom-ports/ports/`:
 
 #### libsodium overlay — the big friction point
 
-The upstream `libsodium` port in vcpkg (baseline `36393d1`) has two bugs
-on Windows:
+The upstream `libsodium` port in vcpkg (at the pinned baseline, currently
+`36393d1ca008d0086488a9041afac26ed3b8edb9`) has two bugs on Windows:
 
 1. **`vcpkg_msbuild_install` is broken for custom triplets** — it tries to
    read the triplet's .cmake file as a vcxproj.  The fix: use absolute paths
@@ -286,39 +320,36 @@ Subsequent runs are instant (binary cache).
 
 ### 3.6 — Build wally
 
+`src/build-windows.ps1` treats libwally as a separately pinned dependency, not
+as a vcpkg or CMake-managed one. It clones the pinned repo/tag from
+`config/sources.json` and builds it into the desktop tree where the desktop
+project expects it.
+
 ```powershell
-# Pre-built wally is needed. The project expects it at:
-#   .build/desktop/libwally-core/
-mkdir -Force "$BuildDir\libwally-core"
-# See ci_tools_atomic_dex for the build script; or copy prebuilt DLL:
-# wally.dll, wally.lib → libwally-core/
+$LibwallyDir = Join-Path $BuildDir "libwally-core"
+if (-not (Test-Path "$LibwallyDir\.git")) {
+  git clone --recurse-submodules -b $LibwallyTag $LibwallyRepo $LibwallyDir
+}
 ```
 
-**Friction**: wally is NOT built by vcpkg or CMake — it must be built
-separately.  The CMakeLists.txt expects headers at
-`${CMAKE_SOURCE_DIR}/libwally-core/include` and the lib at
-`${CMAKE_SOURCE_DIR}/libwally-core/lib`.  On CI, wally is pre-built and
-included in the repo.  For a from-scratch build, you need to cross-compile
-wally for Windows or extract it from a known-good CI artifact.
-
-The easiest workaround: copy from a previous successful build:
-```
-xcopy /E /I known-good-build\libwally-core .build\desktop\libwally-core\
-```
+**Important**: the desktop CMakeLists expects wally headers at
+`${CMAKE_SOURCE_DIR}/libwally-core/include` and the built library under
+`${CMAKE_SOURCE_DIR}/libwally-core/`. If you need to reproduce the full manual
+Windows compile, use `src/build-windows.ps1` step 8 as the canonical sequence.
 
 ### 3.7 — Configure CMake
 
 ```powershell
-$env:QT_INSTALL_CMAKE_PATH = "C:/Qt/5.15.2/msvc2019_64"
+$env:QT_INSTALL_CMAKE_PATH = $QtRoot
 
 cmake -S . -B build -G Ninja `
   -DCMAKE_BUILD_TYPE=Release `
-  -DCMAKE_PREFIX_PATH=C:/Qt/5.15.2/msvc2019_64/lib/cmake
+  -DCMAKE_PREFIX_PATH="$QtRoot/lib/cmake"
 ```
 
-**Important**: The `QT_INSTALL_CMAKE_PATH` env var must point to the **Qt
-root** (`C:/Qt/5.15.2/msvc2019_64`), NOT the cmake subdirectory.  The CMake
-build uses this to find `windeployqt.exe`.
+**Important**: the `QT_INSTALL_CMAKE_PATH` env var must point to the **Qt
+root** (`$QtRoot`), NOT the cmake subdirectory. The CMake build uses this to
+find `windeployqt.exe`.
 
 **Friction**: The custom vcpkg triplet `x64-windows-custom` is automatically
 selected on Windows via `vcpkg_prerequisites.cmake`:
@@ -419,7 +450,7 @@ Coin icons load from the compiled-in QRC (`qrc:///assets/images/coins/`).
 │   ├── Dex\                       # QML source
 │   │   └── qml.qrc               # auto-generated
 │   └── imports\                   # JS imports
-├── libwally-core\                # pre-built wally (not in repo)
+├── libwally-core\                # libwally checkout + local build output
 ├── src\                           # C++ source + main.cpp
 └── build\                         # CMake build output
     └── bin\
@@ -472,8 +503,7 @@ The `src/CMakeLists.txt` (line 145) looks for:
 $ENV{QT_INSTALL_CMAKE_PATH}/bin/windeployqt.exe
 ```
 
-Set `$env:QT_INSTALL_CMAKE_PATH` to `C:/Qt/5.15.2/msvc2019_64` (the Qt root,
-not `lib/cmake`).
+Set `$env:QT_INSTALL_CMAKE_PATH` to `$QtRoot` (the Qt root, not `lib/cmake`).
 
 ### vcpkg build fails with "error: unknown triplet"
 
