@@ -60,6 +60,15 @@ read_linux_builder_bases() {
     DESKTOP_BASE_IMAGE="${DESKTOP_BASE_IMAGE:-$(jq -r '.builder_bases.linux_desktop.source + ":" + .builder_bases.linux_desktop.tag' "$sources_json")}"
 }
 
+read_wasm_builder_base() {
+    local sources_json="${PROJECT_DIR}/config/sources.json"
+    if [ ! -f "$sources_json" ]; then
+        echo "ERROR: Missing config/sources.json" >&2
+        exit 1
+    fi
+    WASM_KDF_BASE_IMAGE="${WASM_KDF_BASE_IMAGE:-$(jq -r '.builder_bases.wasm_kdf.source + ":" + .builder_bases.wasm_kdf.tag' "$sources_json")}"
+}
+
 # ── Parse args ───────────────────────────────────────────────
 MODE="auto"      # auto | docker | native | clean
 TARGET="all"     # all | kdf | desktop | wasm | clean
@@ -236,9 +245,11 @@ if [ "$MODE" = "docker" ]; then
         if [ "${GITHUB_ACTIONS:-}" = "true" ]; then
             CACHE_FLAGS=(--cache-from type=gha,scope=wasm-build --cache-to type=gha,scope=wasm-build,mode=max)
         fi
+        read_wasm_builder_base
         docker buildx build --progress=plain \
             "${CACHE_FLAGS[@]}" \
             --build-arg "PLATFORM=${PLATFORM}" \
+            --build-arg "WASM_KDF_BASE_IMAGE=${WASM_KDF_BASE_IMAGE}" \
             -f src/Dockerfile.kdf-wasm \
             -o "$OUT" \
             . 2>&1 | stdbuf -oL tee "$LOGFILE"

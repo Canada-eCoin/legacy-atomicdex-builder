@@ -44,6 +44,11 @@
       "url": "https://hub.docker.com/_/ubuntu",
       "tag": "22.04",
       "note": "glibc 2.35"
+    },
+    "wasm_kdf": {
+      "source": "docker.io/library/rust",
+      "url": "https://hub.docker.com/_/rust",
+      "tag": "1.84.0-bookworm"
     }
   }
 }

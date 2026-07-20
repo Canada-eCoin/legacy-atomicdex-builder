@@ -1,6 +1,12 @@
 # Dockerfile.kdf-wasm — Build KDF to WebAssembly, extract via -o
 # Usage: docker build -f src/Dockerfile.kdf-wasm -o output/wasm .
 #
+# Build args:
+#   WASM_KDF_BASE_IMAGE          from config/sources.json builder_bases.wasm_kdf
+#
+# Direct docker use should pass the builder-base arg explicitly.
+# The command wrapper reads it from config/sources.json automatically.
+#
 # Layer strategy (top = stable, bottom = volatile):
 #   [1] apt deps + wasm-pack — rebuilds only when Dockerfile changes
 #   [2] clone KDF source      — rebuilds only when sources.json changes
@@ -12,7 +18,8 @@
 #   output/wasm/mm2.js            ← JS glue code (wasm-bindgen)
 #   output/wasm/package.json
 
-FROM rust:1.84.0-bookworm
+ARG WASM_KDF_BASE_IMAGE
+FROM ${WASM_KDF_BASE_IMAGE}
 
 ENV DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC
 RUN apt-get update && apt-get install -y \
