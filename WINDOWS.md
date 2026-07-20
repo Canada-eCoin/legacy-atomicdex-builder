@@ -87,6 +87,7 @@ The pinned source revisions live in `config/sources.json`:
 |-----------|------|------|-----|
 | KDF | `KomodoPlatform/komodo-defi-framework` | git commit | `30c877c5` |
 | Desktop wallet | `cipig/komodo-wallet-desktop` | git commit | `0d333c5` |
+| Qaterial | `OlivierLDff/Qaterial` | git commit | `c2f32d2` |
 | Coins config | `cipig/coins` (branch `nogeo`) | git commit | `6d0db32` |
 | vcpkg baseline | `microsoft/vcpkg` | git commit | `36393d1ca008d0086488a9041afac26ed3b8edb9` |
 | libwally-core | `ElementsProject/libwally-core` | git tag | `release_0.9.2` |
