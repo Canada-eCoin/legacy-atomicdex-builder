@@ -51,9 +51,9 @@ Load the current Qt pin first:
 
 ```powershell
 $Toolchains = Get-Content .\config\toolchains.json -Raw | ConvertFrom-Json
-$QtVersion = $Toolchains.qt.version
-$QtWindowsArch = $Toolchains.qt.windows_arch
-$QtArchive = $Toolchains.qt.repo
+$QtVersion = $Toolchains.qt.windows.version
+$QtWindowsArch = $Toolchains.qt.windows.arch
+$QtArchive = $Toolchains.qt.windows.repo
 ```
 
 1. Go to `$QtArchive`
@@ -116,7 +116,7 @@ The pinned toolchain revisions live in `config/toolchains.json`:
 
 | Component | Repo | Kind | Pin |
 |-----------|------|------|-----|
-| Qt (win/mac) | `download.qt.io/archive/qt/5.15/5.15.2/` | version | `5.15.2` |
+| Qt (windows) | `download.qt.io/archive/qt/5.15/5.15.2/` | version | `5.15.2` |
 
 For manual reproduction, load the pinned values once and reuse them through the
 examples below:
@@ -130,9 +130,9 @@ $DesktopCommit = $Sources.desktop.commit
 $VcpkgBaseline = $Sources.dependencies.vcpkg.commit
 $LibwallyRepo = $Sources.dependencies.libwally.repo
 $LibwallyTag = $Sources.dependencies.libwally.tag
-$QtVersion = $Toolchains.qt.version
-$QtWindowsArch = $Toolchains.qt.windows_arch
-$QtArchive = $Toolchains.qt.repo
+$QtVersion = $Toolchains.qt.windows.version
+$QtWindowsArch = $Toolchains.qt.windows.arch
+$QtArchive = $Toolchains.qt.windows.repo
 $QtRoot = "C:/Qt/$QtVersion/$QtWindowsArch"
 ```
 

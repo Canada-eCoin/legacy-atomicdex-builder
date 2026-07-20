@@ -143,9 +143,9 @@ jobs:
         id: qt_pin
         shell: powershell
         run: |
-          $qt = (Get-Content 'config/toolchains.json' -Raw | ConvertFrom-Json).qt
+          $qt = (Get-Content 'config/toolchains.json' -Raw | ConvertFrom-Json).qt.windows
           "version=$($qt.version)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
-          "arch=$($qt.windows_arch)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          "arch=$($qt.arch)" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
       - name: Install Qt
         uses: jurplel/install-qt-action@v4
@@ -318,8 +318,10 @@ jobs:
           VCPKG_COMMIT=$(jq -r '.dependencies.vcpkg.commit' config/sources.json)
           LIBWALLY_REPO=$(jq -r '.dependencies.libwally.repo' config/sources.json)
           LIBWALLY_TAG=$(jq -r '.dependencies.libwally.tag' config/sources.json)
-          QT_REPO=$(jq -r '.qt.repo' config/toolchains.json)
-          QT_VERSION=$(jq -r '.qt.version' config/toolchains.json)
+          QT_WINDOWS_REPO=$(jq -r '.qt.windows.repo' config/toolchains.json)
+          QT_WINDOWS_VERSION=$(jq -r '.qt.windows.version' config/toolchains.json)
+          QT_MACOS_INTEL_REPO=$(jq -r '.qt.macos_intel.repo' config/toolchains.json)
+          QT_MACOS_INTEL_VERSION=$(jq -r '.qt.macos_intel.version' config/toolchains.json)
           BINARYEN_REPO=$(jq -r '.dependencies.binaryen.repo' config/sources.json)
           BINARYEN_TAG=$(jq -r '.dependencies.binaryen.tag' config/sources.json)
           LINUX_KDF_BASE_SOURCE=$(jq -r '.builder_bases.linux_kdf.source' config/toolchains.json)
@@ -340,7 +342,8 @@ jobs:
           echo "| Linux desktop builder base | [${LINUX_DESKTOP_BASE_SOURCE}](${LINUX_DESKTOP_BASE_URL}) | image tag | \`$LINUX_DESKTOP_BASE_TAG\` |" >> release-body.md
           echo "| WASM KDF builder base | [${WASM_KDF_BASE_SOURCE}](${WASM_KDF_BASE_URL}) | image tag | \`$WASM_KDF_BASE_TAG\` |" >> release-body.md
           echo "| libwally-core | [${LIBWALLY_REPO#https://}]($LIBWALLY_REPO) | git tag | \`$LIBWALLY_TAG\` |" >> release-body.md
-          echo "| Qt (win/mac) | [${QT_REPO#https://}]($QT_REPO) | version | \`$QT_VERSION\` |" >> release-body.md
+          echo "| Qt (windows) | [${QT_WINDOWS_REPO#https://}]($QT_WINDOWS_REPO) | version | \`$QT_WINDOWS_VERSION\` |" >> release-body.md
+          echo "| Qt (macOS Intel) | [${QT_MACOS_INTEL_REPO#https://}]($QT_MACOS_INTEL_REPO) | version | \`$QT_MACOS_INTEL_VERSION\` |" >> release-body.md
           echo "| binaryen (WASM) | [${BINARYEN_REPO#https://}]($BINARYEN_REPO) | git tag | \`$BINARYEN_TAG\` |" >> release-body.md
           echo "" >> release-body.md
           echo "### Artifacts" >> release-body.md

@@ -1,8 +1,15 @@
 {
   "qt": {
-    "repo": "https://download.qt.io/archive/qt/5.15/5.15.2/",
-    "version": "5.15.2",
-    "windows_arch": "win64_msvc2019_64"
+    "windows": {
+      "repo": "https://download.qt.io/archive/qt/5.15/5.15.2/",
+      "version": "5.15.2",
+      "arch": "win64_msvc2019_64"
+    },
+    "macos_intel": {
+      "repo": "https://download.qt.io/archive/qt/5.15/5.15.2/",
+      "version": "5.15.2",
+      "arch": "clang_64"
+    }
   },
   "builder_bases": {
     "linux_kdf": {

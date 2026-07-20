@@ -70,6 +70,7 @@ DESKTOP_REPO="${DESKTOP_REPO:-}"
 DESKTOP_COMMIT="${DESKTOP_COMMIT:-}"
 LIBWALLY_REPO="${LIBWALLY_REPO:-}"
 LIBWALLY_TAG="${LIBWALLY_TAG:-}"
+QT_AQT_ARCH="${QT_AQT_ARCH:-}"
 
 mkdir -p "$OUTPUT_DIR" "$LOG_DIR" "$BUILD_ROOT" "$SDK_ROOT" "$LOCAL_PREFIX"
 export PATH="$HOME/.cargo/bin:$PATH"
@@ -158,7 +159,10 @@ read_sources() {
         DESKTOP_COMMIT="$(jq -r '.desktop.commit' "$SOURCES_JSON")"
     fi
     if [ -z "$QT_VERSION" ]; then
-        QT_VERSION="$(jq -r '.qt.version' "$TOOLCHAINS_JSON")"
+        QT_VERSION="$(jq -r '.qt.macos_intel.version' "$TOOLCHAINS_JSON")"
+    fi
+    if [ -z "$QT_AQT_ARCH" ]; then
+        QT_AQT_ARCH="$(jq -r '.qt.macos_intel.arch' "$TOOLCHAINS_JSON")"
     fi
     if [ -z "$LIBWALLY_REPO" ]; then
         LIBWALLY_REPO="$(jq -r '.dependencies.libwally.repo' "$SOURCES_JSON")"
@@ -199,7 +203,7 @@ qt_aqt_root() {
 }
 
 qt_aqt_cmake_dir() {
-    echo "$(qt_aqt_root)/clang_64/lib/cmake"
+    echo "$(qt_aqt_root)/${QT_AQT_ARCH}/lib/cmake"
 }
 
 check_qt() {
@@ -379,12 +383,12 @@ resolve_python() {
 set_build_arch_for_qt() {
     local source_kind="$1"
 
-    if [ "$source_kind" = "aqt-clang_64" ] && [ "$HOST_ARCH" = "arm64" ]; then
+    if [ "$source_kind" = "aqt-${QT_AQT_ARCH}" ] && [ "$HOST_ARCH" = "arm64" ]; then
         BUILD_ARCH="x86_64"
         BUILD_RUST_TARGET="x86_64-apple-darwin"
         BUILD_VCPKG_TRIPLET="x64-osx"
         BUILD_CMAKE_OSX_ARCH="x86_64"
-        warn "Qt ${QT_VERSION} clang_64 is Intel-only; building desktop path for x86_64 parity"
+        warn "Qt ${QT_VERSION} ${QT_AQT_ARCH} is Intel-only; building desktop path for x86_64 parity"
     fi
 }
 
@@ -408,7 +412,7 @@ install_qt_via_aqt() {
     "$PYTHON_BIN" -m venv "$aqt_venv"
     "$aqt_venv/bin/python" -m pip install --upgrade pip
     "$aqt_venv/bin/python" -m pip install aqtinstall==3.1.1
-    "$aqt_venv/bin/python" -m aqt install-qt mac desktop "$QT_VERSION" clang_64 -O "$qt_root_base" -m qtcharts debug_info qtwebengine
+    "$aqt_venv/bin/python" -m aqt install-qt mac desktop "$QT_VERSION" "$QT_AQT_ARCH" -O "$qt_root_base" -m qtcharts debug_info qtwebengine
 
     qt_cmake_dir_is_complete "$(qt_aqt_cmake_dir)" || die "aqtinstall completed, but Qt WebEngine modules are still missing"
 }
@@ -421,10 +425,10 @@ resolve_qt() {
 
     if [ -n "${QT_INSTALL_CMAKE_PATH:-}" ] && qt_cmake_dir_is_complete "$QT_INSTALL_CMAKE_PATH"; then
         QT_INSTALL_CMAKE_PATH_RESOLVED="$QT_INSTALL_CMAKE_PATH"
-        if [ -n "${QT_ROOT:-}" ] && [ -x "${QT_ROOT}/clang_64/bin/macdeployqt" ]; then
+        if [ -n "${QT_ROOT:-}" ] && [ -x "${QT_ROOT}/${QT_AQT_ARCH}/bin/macdeployqt" ]; then
             QT_ROOT_RESOLVED="$QT_ROOT"
             case "$QT_INSTALL_CMAKE_PATH" in
-                */clang_64/*) set_build_arch_for_qt "aqt-clang_64" ;;
+                */${QT_AQT_ARCH}/*) set_build_arch_for_qt "aqt-${QT_AQT_ARCH}" ;;
             esac
             return
         fi
@@ -433,7 +437,7 @@ resolve_qt() {
         [ -x "$qt_macdeploy" ] || die "QT_INSTALL_CMAKE_PATH is set, but macdeployqt was not found next to it"
         QT_ROOT_RESOLVED="$(dirname "$qt_prefix")"
         case "$QT_INSTALL_CMAKE_PATH" in
-            */clang_64/*) set_build_arch_for_qt "aqt-clang_64" ;;
+            */${QT_AQT_ARCH}/*) set_build_arch_for_qt "aqt-${QT_AQT_ARCH}" ;;
         esac
         return
     fi
@@ -446,8 +450,8 @@ resolve_qt() {
             if [ -n "$qt_prefix" ] && qt_cmake_dir_is_complete "$qt_prefix/lib/cmake" && [ -x "$qt_prefix/bin/macdeployqt" ]; then
                 QT_INSTALL_CMAKE_PATH_RESOLVED="$qt_prefix/lib/cmake"
                 QT_ROOT_RESOLVED="${BUILD_ROOT}/Qt/${QT_VERSION}"
-                mkdir -p "${QT_ROOT_RESOLVED}/clang_64/bin" "${BUILD_ROOT}/Qt/Tools/QtInstallerFramework"
-                ln -sf "$qt_prefix/bin/macdeployqt" "${QT_ROOT_RESOLVED}/clang_64/bin/macdeployqt"
+                mkdir -p "${QT_ROOT_RESOLVED}/${QT_AQT_ARCH}/bin" "${BUILD_ROOT}/Qt/Tools/QtInstallerFramework"
+                ln -sf "$qt_prefix/bin/macdeployqt" "${QT_ROOT_RESOLVED}/${QT_AQT_ARCH}/bin/macdeployqt"
                 return
             fi
         fi
@@ -456,8 +460,8 @@ resolve_qt() {
 
     QT_INSTALL_CMAKE_PATH_RESOLVED="$aqt_cmake"
     QT_ROOT_RESOLVED="$aqt_root"
-    [ -x "$QT_ROOT_RESOLVED/clang_64/bin/macdeployqt" ] || die "Qt install is missing macdeployqt"
-    set_build_arch_for_qt "aqt-clang_64"
+    [ -x "$QT_ROOT_RESOLVED/${QT_AQT_ARCH}/bin/macdeployqt" ] || die "Qt install is missing macdeployqt"
+    set_build_arch_for_qt "aqt-${QT_AQT_ARCH}"
 }
 
 ensure_sdk() {
@@ -769,7 +773,7 @@ build_desktop() {
         ok "App bundle → $OUTPUT_DIR/$(basename "$app_found")"
 
         # Run macdeployqt to bundle Qt frameworks into the .app
-        local macdeployqt_bin="$QT_ROOT_RESOLVED/clang_64/bin/macdeployqt"
+        local macdeployqt_bin="$QT_ROOT_RESOLVED/${QT_AQT_ARCH}/bin/macdeployqt"
         if [ -x "$macdeployqt_bin" ]; then
             step "6f" "Bundling Qt frameworks (macdeployqt)"
             "$macdeployqt_bin" "$OUTPUT_DIR/$(basename "$app_found")" -no-strip 2>&1 | sed 's/^/    /' || warn "macdeployqt had warnings"

@@ -458,10 +458,15 @@ Current toolchain and builder-base pins are in `config/toolchains.json`.
 
 | Component | Source | Kind | Pin |
 | --- | --- | --- | --- |
-| Qt (win/mac) | `download.qt.io/archive/qt/5.15/5.15.2/` | version | `5.15.2` |
+| Qt (windows) | `download.qt.io/archive/qt/5.15/5.15.2/` | version | `5.15.2` |
+| Qt (macOS Intel) | `download.qt.io/archive/qt/5.15/5.15.2/` | version | `5.15.2` |
 | Linux KDF builder base | `docker.io/library/rust` | image tag | `1.84.0-bookworm` |
 | Linux desktop builder base | `docker.io/library/ubuntu` | image tag | `22.04 (glibc 2.35)` |
 | WASM KDF builder base | `docker.io/library/rust` | image tag | `1.84.0-bookworm` |
+
+Native macOS arm64 remains host-driven: the build expects a usable local Qt5
+installation (typically Homebrew `qt@5`) and does not treat that surface as a
+fully pinned reproducible toolchain.
 
 Environment variables can override these pins for local experiments or CI.
 
