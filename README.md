@@ -376,8 +376,8 @@ Recommended landing order:
 3. Requests consent before installing dependencies, unless consent is pre-approved.
 4. Clones pinned upstream repositories from `config/sources.json`.
 5. Builds the requested target with numbered progress steps.
-6. Writes artifacts and checksums to `output/<platform>/`.
-7. Writes logs and install breadcrumbs to `logs/<platform>/`.
+6. Writes artifacts and checksums to platform-specific output directories (`output/linux/`, `output/windows/`, `output/wasm/`, `output/mac-intel/`, `output/mac-arm/`).
+7. Writes logs and install breadcrumbs to matching platform-specific log directories (`logs/linux/`, `logs/windows/`, `logs/wasm/`, `logs/mac-intel/`, `logs/mac-arm/`).
 
 ---
 
