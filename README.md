@@ -434,7 +434,7 @@ See `env.sample` for all supported variables and platform-specific settings.
 
 ## Source pins
 
-Current pins are in `config/sources.json`.
+Current source and toolchain pins are in `config/sources.json`.
 
 | Component | Source | Kind | Pin |
 | --- | --- | --- | --- |

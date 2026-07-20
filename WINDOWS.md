@@ -81,7 +81,7 @@ git clone https://github.com/Canada-eCoin/legacy-atomicdex-builder.git
 cd legacy-atomicdex-builder
 ```
 
-The pinned source revisions live in `config/sources.json`:
+The pinned source and toolchain revisions live in `config/sources.json`:
 
 | Component | Repo | Kind | Pin |
 |-----------|------|------|-----|
