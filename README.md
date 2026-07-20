@@ -375,10 +375,9 @@ Recommended landing order:
 2. Checks required dependencies and explains what is missing.
 3. Requests consent before installing dependencies, unless consent is pre-approved.
 4. Clones pinned upstream repositories from `config/sources.json`.
-5. Applies numbered patches from `config/patches/` if that directory exists.
-6. Builds the requested target with numbered progress steps.
-7. Writes artifacts and checksums to `output/<platform>/`.
-8. Writes logs and install breadcrumbs to `logs/<platform>/`.
+5. Builds the requested target with numbered progress steps.
+6. Writes artifacts and checksums to `output/<platform>/`.
+7. Writes logs and install breadcrumbs to `logs/<platform>/`.
 
 ---
 
@@ -499,8 +498,8 @@ atomicdex-legacy-builder/
 - **Pinned inputs:** upstream repos and dependency revisions live in
   `config/sources.json`; toolchain and builder-base pins live in
   `config/toolchains.json`.
-- **Patch, do not fork:** local changes should live as numbered patches in
-  `config/patches/` when a source delta is needed.
+- **Keep the surface small:** prefer pinning and wrapper changes over carrying
+  extra local overlay machinery.
 - **Human-readable failure:** scripts explain missing tools and suggested fixes.
 - **Consent before install:** dependency installation is explicit unless
   `--yes` / `BUILD_YES=1` is used.
