@@ -307,19 +307,19 @@ jobs:
             cp "$wasm_dir/mm2.js" "$wasm_zip_dir/"
             cp "$wasm_dir/mm2_bg.wasm" "$wasm_zip_dir/"
             cp "$wasm_dir/package.json" "$wasm_zip_dir/"
-            cat > "$wasm_zip_dir/README.txt" <<'EOF'
-KDF WebAssembly bundle
-
-Contents:
-- mm2.js        JavaScript loader / bindings
-- mm2_bg.wasm  WebAssembly engine binary
-- package.json Package metadata
-
-Usage:
-- Serve these files over HTTP/HTTPS, not file://
-- Import ./mm2.js from a browser ES module
-- Let mm2.js load ./mm2_bg.wasm from the same directory
-EOF
+            printf '%s\n' \
+              'KDF WebAssembly bundle' \
+              '' \
+              'Contents:' \
+              '- mm2.js        JavaScript loader / bindings' \
+              '- mm2_bg.wasm  WebAssembly engine binary' \
+              '- package.json Package metadata' \
+              '' \
+              'Usage:' \
+              '- Serve these files over HTTP/HTTPS, not file://' \
+              '- Import ./mm2.js from a browser ES module' \
+              '- Let mm2.js load ./mm2_bg.wasm from the same directory' \
+              > "$wasm_zip_dir/README.txt"
             (
               cd "$wasm_zip_dir"
               zip -q -9 "$OLDPWD/release/kdf-wasm.zip" mm2.js mm2_bg.wasm package.json README.txt
