@@ -1,17 +1,17 @@
 # STATUS
 
-_Last updated: 2026-07-19 UTC_
+_Last updated: 2026-07-28 UTC_
 
 All four platforms build and ship in CI. Releases are created
-automatically on version tags (`v*`) with individual artifacts
-and full provenance.
+automatically on version tags (`v*`) with individual artifacts,
+SHA256 values in the release body, and full provenance.
 
 | Platform | Artifacts |
 |---|---|
 | Linux | KDF + AppImage (~187 MB) |
 | macOS Intel | KDF + DMG (~146 MB) |
 | Windows x86_64 | KDF + portable ZIP (~186 MB) |
-| WASM | mm2_bg.wasm + mm2.js (~32 MB) |
+| WASM | kdf-wasm.zip (~32 MB wasm payload + metadata) |
 
 ## Build pathway status
 
@@ -23,19 +23,19 @@ and full provenance.
 | macOS arm64 / Apple Silicon | Working / tested with WebEngine disabled | Native arm64 desktop app builds and runs. QtWebEngine-dependent chart/price widget disabled (Homebrew qt@5 limitation). |
 | Windows native x86_64 | Working / verified + portable ZIP | Full KDF + Qt desktop build with portable ZIP output. CI green. |
 | Windows native arm64 | Roadmap | Future target. |
-| KDF WebAssembly | Working / verified + in releases | Docker wasm-pack build, CI green. mm2_bg.wasm + mm2.js in releases. |
+| KDF WebAssembly | Working / verified + in releases | Docker wasm-pack build, CI green. Release packages `mm2.js`, `mm2_bg.wasm`, `package.json`, and `README.txt` as `kdf-wasm.zip`. |
 | Deterministic / reproducible builds | Not done yet | Reproducibility work still outstanding. |
 
 ## Release posture
 
 - Tag-based releases (`git tag v* && git push --tags`) build all four
   platforms and create a GitHub Release with individual artifacts.
-- Each release includes SHA256 checksums and a full provenance table
-  listing all pinned upstream sources.
+- Each release includes SHA256 values in the release body and a full
+  provenance table listing all pinned upstream sources.
 - Linux AppImage confirmed working and tested.
 - macOS DMG confirmed building in CI.
 - Windows portable ZIP confirmed building in CI (installer EXE still TBD).
-- WASM artifacts included in releases.
+- WASM is released as a single `kdf-wasm.zip` bundle.
 - macOS arm64 is not in CI (requires Apple Silicon runner) but the
   build script is tested on Mac mini M2.
 - Deterministic output has **not** been locked down yet.
@@ -44,12 +44,12 @@ and full provenance.
 
 | Platform | Arch | Current shape | Eventual targets |
 |---|---|---|---|
-| Linux | x86_64 | KDF + AppImage + CI | KDF, Qt desktop, AppImage, checksums |
-| macOS | x86_64 | KDF + DMG + CI | KDF, Qt desktop, DMG, checksums |
-| macOS | arm64 | native path with QtWebEngine limitation | KDF, Qt desktop, DMG, checksums |
-| Windows | x86_64 | KDF + portable ZIP + CI | KDF, Qt desktop, portable ZIP, installer EXE, checksums |
-| Windows | arm64 | roadmap | KDF, Qt desktop, portable ZIP, installer EXE, checksums |
-| KDF | wasm | CI green + in releases | wasm KDF artifact, checksums |
+| Linux | x86_64 | KDF + AppImage + CI | KDF, Qt desktop, AppImage |
+| macOS | x86_64 | KDF + DMG + CI | KDF, Qt desktop, DMG |
+| macOS | arm64 | native path with QtWebEngine limitation | KDF, Qt desktop, DMG |
+| Windows | x86_64 | KDF + portable ZIP + CI | KDF, Qt desktop, portable ZIP, installer EXE |
+| Windows | arm64 | roadmap | KDF, Qt desktop, portable ZIP, installer EXE |
+| KDF | wasm | CI green + in releases | `kdf-wasm.zip` bundle |
 
 Recommended landing order:
 

@@ -265,31 +265,68 @@ jobs:
           path: artifacts
           pattern: atomicdex-*-output
 
-      - name: Flatten and checksum
+      - name: Flatten and package release assets
         run: |
           mkdir -p release
-          # Platform-prefix all files — basenames collide across platforms
+          # Platform-prefix all files — basenames collide across platforms.
+          # Package the WASM trio as one distributable release asset instead of
+          # publishing the raw module pieces separately.
           for dir in artifacts/atomicdex-*/; do
             label="$(echo "$dir" | sed 's|artifacts/atomicdex-||;s|-output/||')"
             find "$dir" -type f \
               ! -path '*komodo-wallet.app/*' \
               ! -name 'kdf_kwd' \
               ! -name '*.sha256' \
-              -size +0c | while read f; do
+              -size +0c | while IFS= read -r f; do
               base="$(basename "$f")"
+              if [ "$label" = "wasm-kdf" ]; then
+                case "$base" in
+                  mm2.js|mm2_bg.wasm|package.json)
+                    continue ;;
+                esac
+              fi
               # Add platform prefix unless it already has a unique name
               case "$base" in
                 *.AppImage|*.dmg|*.wasm|*.js|*.json|*.zip|*.exe)
                   dest="$base" ;;
-                kdf|kdf.sha256)
+                kdf)
                   dest="${label}-${base}" ;;
                 *)
                   dest="${label}-${base}" ;;
               esac
               cp "$f" "release/$dest"
-              sha256sum "$f" | sed "s|$f|$dest|" > "release/$dest.sha256"
             done
           done
+
+          wasm_dir="artifacts/atomicdex-wasm-kdf-output"
+          if [ -d "$wasm_dir" ]; then
+            for f in mm2.js mm2_bg.wasm package.json; do
+              [ -f "$wasm_dir/$f" ] || { echo "Missing WASM release input: $wasm_dir/$f" >&2; exit 1; }
+            done
+            wasm_zip_dir="$(mktemp -d)"
+            cp "$wasm_dir/mm2.js" "$wasm_zip_dir/"
+            cp "$wasm_dir/mm2_bg.wasm" "$wasm_zip_dir/"
+            cp "$wasm_dir/package.json" "$wasm_zip_dir/"
+            cat > "$wasm_zip_dir/README.txt" <<'EOF'
+KDF WebAssembly bundle
+
+Contents:
+- mm2.js        JavaScript loader / bindings
+- mm2_bg.wasm  WebAssembly engine binary
+- package.json Package metadata
+
+Usage:
+- Serve these files over HTTP/HTTPS, not file://
+- Import ./mm2.js from a browser ES module
+- Let mm2.js load ./mm2_bg.wasm from the same directory
+EOF
+            (
+              cd "$wasm_zip_dir"
+              zip -q -9 "$OLDPWD/release/kdf-wasm.zip" mm2.js mm2_bg.wasm package.json README.txt
+            )
+            rm -rf "$wasm_zip_dir"
+          fi
+
           echo '=== Release assets ==='
           ls -lah release/
 
@@ -351,15 +388,13 @@ jobs:
           echo '| File | Size | SHA256 |' >> release-body.md
           echo '|---|---|---|' >> release-body.md
           for f in release/*; do
-            case "$f" in *.sha256) continue ;; esac
             base="$(basename "$f")"
             size="$(du -h "$f" | cut -f1)"
-            sha="$(cat "release/$base.sha256" | awk '{print $1}')"
+            sha="$(sha256sum "$f" | awk '{print $1}')"
             echo "| \`$base\` | $size | \`${sha:0:16}…\` |" >> release-body.md
           done
           echo "" >> release-body.md
           cp release-body.md release/PROVENANCE.md
-          sha256sum release/PROVENANCE.md | sed 's|release/PROVENANCE.md|PROVENANCE.md|' > release/PROVENANCE.md.sha256
           cat release-body.md
 
       - name: Create GitHub Release

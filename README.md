@@ -1,13 +1,14 @@
 # AtomicDEX Legacy Builder
 
 > [!NOTE]
-> Tag-based releases auto-create GitHub Releases with checksums and a
-> `PROVENANCE.md` manifest. See [STATUS.md](./STATUS.md) for current state.
+> Tag-based releases auto-create GitHub Releases with a `PROVENANCE.md`
+> manifest and SHA256 values in the release body table. See
+> [STATUS.md](./STATUS.md) for current state.
 >
 > **CI release surfaces:**
 > - **KDF binaries:** Linux x86_64, macOS Intel/x86_64, Windows x86_64
 > - **Desktop wallets:** Linux AppImage (~187 MB), macOS Intel DMG (~146 MB), Windows x86_64 portable ZIP (~186 MB)
-> - **WASM artifact:** mm2_bg.wasm + JS bindings (~32 MB)
+> - **WASM artifact:** `kdf-wasm.zip` containing `mm2.js`, `mm2_bg.wasm`, `package.json`, and `README.txt`
 
 Portable build scripts for producing verified Komodo/AtomicDEX legacy artifacts:
 
@@ -67,6 +68,16 @@ Windows:  output/windows/
 WASM:     output/wasm/
 macOS:    output/mac-intel/ or output/mac-arm/
 ```
+
+WASM build output in the workspace is the raw trio:
+
+```text
+output/wasm/mm2.js
+output/wasm/mm2_bg.wasm
+output/wasm/package.json
+```
+
+GitHub Releases package that trio as `kdf-wasm.zip` for cleaner downloads.
 
 Logs land in:
 
