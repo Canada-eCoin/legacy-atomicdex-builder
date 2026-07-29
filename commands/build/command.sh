@@ -211,6 +211,43 @@ mkdir -p "$OUT" "$LOG"
 
 echo "=== ${MODE} | ${TARGET} | ${PLATFORM} ==="
 
+# ── Cache-hit fast path ─────────────────────────────────────
+# Expected output artifacts per platform. If they all exist,
+# the build is skipped — the CI cache already has them.
+_check_cache_hit() {
+    local out_dir="$1" target="$2"
+    case "$target" in
+        all|kdf)
+            case "$(basename "$out_dir")" in
+                linux)   [ -f "$out_dir/atomicdex-kdf-linux-x86_64" ]           || return 1 ;;
+                mac-intel) [ -f "$out_dir/atomicdex-kdf-macos-intel" ]         || return 1 ;;
+                mac-arm)   [ -f "$out_dir/atomicdex-kdf-macos-arm" ]           || return 1 ;;
+                windows)   [ -f "$out_dir/atomicdex-kdf-windows-x86_64.exe" ]  || return 1 ;;
+                wasm)      [ -f "$out_dir/mm2_bg.wasm" ] && [ -f "$out_dir/mm2.js" ] || return 1 ;;
+            esac ;;
+    esac
+    case "$target" in
+        all|desktop)
+            case "$(basename "$out_dir")" in
+                linux)   [ -f "$out_dir/atomicdex-desktop-linux-x86_64.AppImage" ]  || return 1 ;;
+                mac-intel) [ -f "$out_dir/atomicdex-desktop-macos-intel.dmg" ]      || return 1 ;;
+                mac-arm)   [ -f "$out_dir/atomicdex-desktop-macos-arm.dmg" ]        || return 1 ;;
+                windows)   [ -f "$out_dir/atomicdex-desktop-windows-x86_64-portable.zip" ] || return 1 ;;
+            esac ;;
+    esac
+    return 0
+}
+
+_maybe_skip_cache_hit() {
+    if [ "${BUILD_YES:-}" != "force" ] && _check_cache_hit "$OUT" "$TARGET"; then
+        echo ""
+        echo "═══ Cache hit — outputs already built, skipping ═══"
+        ls -lh "$OUT/" 2>/dev/null || true
+        echo ""
+        exit 0
+    fi
+}
+
 # ── Error summary helper ─────────────────────────────────────
 summarize_errors() {
     local log="$1"
@@ -245,12 +282,13 @@ if [ "$MODE" = "docker" ]; then
         OUT="${PROJECT_DIR}/output/wasm"
         LOG="${PROJECT_DIR}/logs/wasm"
         mkdir -p "$OUT" "$LOG"
+        _maybe_skip_cache_hit
         LOGFILE="${LOG}/wasm-build.log"
         echo ""
         echo "=== KDF → WebAssembly ==="
         CACHE_FLAGS=()
         if [ "${GITHUB_ACTIONS:-}" = "true" ]; then
-            CACHE_FLAGS=(--cache-from type=gha,scope=wasm-build --cache-to type=gha,scope=wasm-build,mode=max)
+            CACHE_FLAGS=(--cache-from type=gha,scope=wasm-build --cache-to type=gha,scope=wasm-build,mode=min)
         fi
         read_wasm_builder_base
         docker buildx build --progress=plain \
@@ -276,12 +314,14 @@ if [ "$MODE" = "docker" ]; then
         desktop) DOCKER_TARGET="desktop" ;;
     esac
 
+    _maybe_skip_cache_hit
+
     LOGFILE="${LOG}/build.log"
     echo ""
     echo "=== Docker build --target ${DOCKER_TARGET} ==="
     CACHE_FLAGS=()
     if [ "${GITHUB_ACTIONS:-}" = "true" ]; then
-        CACHE_FLAGS=(--cache-from type=gha,scope=linux-build --cache-to type=gha,scope=linux-build,mode=max)
+        CACHE_FLAGS=(--cache-from type=gha,scope=linux-build --cache-to type=gha,scope=linux-build,mode=min)
     fi
     read_linux_builder_bases
     docker buildx build --progress=plain \
@@ -307,6 +347,8 @@ fi
 # Native path — platform-native scripts with flag translation
 # ═══════════════════════════════════════════════════════════════
 if [ "$MODE" = "native" ]; then
+    _maybe_skip_cache_hit
+
     SCRIPT="$(native_script_for_platform "$PLATFORM")"
     if [ ! -f "$SCRIPT" ]; then
         echo "ERROR: No native build script for ${PLATFORM}: $SCRIPT"

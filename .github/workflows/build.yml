@@ -45,6 +45,23 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: Compute cache key
+        id: ck
+        run: |
+          echo "sources=$(sha256sum config/sources.json | awk '{print $1}')" >> $GITHUB_OUTPUT
+          echo "kdf=$(sha256sum src/docker-build.sh src/_build-lib.sh src/Dockerfile | sha256sum | awk '{print $1}')" >> $GITHUB_OUTPUT
+
+      - name: Restore build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            output/linux/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/
+          key: linux-docker-${{ steps.ck.outputs.sources }}-${{ steps.ck.outputs.kdf }}
+          restore-keys: |
+            linux-docker-${{ steps.ck.outputs.sources }}-
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
         with:
@@ -87,6 +104,23 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      - name: Compute cache key
+        id: ck
+        run: |
+          echo "sources=$(shasum -a 256 config/sources.json | awk '{print $1}')" >> $GITHUB_OUTPUT
+          echo "script=$(shasum -a 256 src/build-mac-intel.sh src/_build-lib.sh | shasum -a 256 | awk '{print $1}')" >> $GITHUB_OUTPUT
+
+      - name: Restore build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            output/mac-intel/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/
+          key: macos-intel-${{ steps.ck.outputs.sources }}-${{ steps.ck.outputs.script }}
+          restore-keys: |
+            macos-intel-${{ steps.ck.outputs.sources }}-
+
       - name: Build KDF + Desktop
         run: ./commands/build/command.sh native --arch intel --yes
         env:
@@ -125,6 +159,26 @@ jobs:
     timeout-minutes: 300
     steps:
       - uses: actions/checkout@v5
+
+      - name: Compute cache key
+        id: ck
+        shell: powershell
+        run: |
+          $sources = (Get-FileHash 'config/sources.json' -Algorithm SHA256).Hash
+          "sources=$sources" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+          $script = (Get-FileHash 'src/build-windows.ps1' -Algorithm SHA256).Hash
+          "script=$script" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
+
+      - name: Restore build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            output/windows/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/
+          key: windows-${{ steps.ck.outputs.sources }}-${{ steps.ck.outputs.script }}
+          restore-keys: |
+            windows-${{ steps.ck.outputs.sources }}-
 
       - name: Set up Rust
         uses: dtolnay/rust-toolchain@stable
@@ -205,6 +259,23 @@ jobs:
     timeout-minutes: 120
     steps:
       - uses: actions/checkout@v5
+
+      - name: Compute cache key
+        id: ck
+        run: |
+          echo "sources=$(sha256sum config/sources.json | awk '{print $1}')" >> $GITHUB_OUTPUT
+          echo "script=$(sha256sum src/Dockerfile.kdf-wasm | awk '{print $1}')" >> $GITHUB_OUTPUT
+
+      - name: Restore build cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            output/wasm/
+            ~/.cargo/registry/cache/
+            ~/.cargo/git/
+          key: wasm-docker-${{ steps.ck.outputs.sources }}-${{ steps.ck.outputs.script }}
+          restore-keys: |
+            wasm-docker-${{ steps.ck.outputs.sources }}-
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v4
