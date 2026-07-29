@@ -205,8 +205,28 @@ if [ "$MODE" = "auto" ]; then
     fi
 fi
 
-OUT="${PROJECT_DIR}/output/${PLATFORM}"
-LOG="${PROJECT_DIR}/logs/${PLATFORM}"
+# Resolve actual output directory (macOS adds arch suffix)
+_resolve_platform_dir() {
+    local suffix="$PLATFORM"
+    if [ "$PLATFORM" = "mac" ]; then
+        suffix="mac-intel"  # default
+        local i
+        for ((i=0; i<${#NATIVE_FLAGS[@]}; i++)); do
+            case "${NATIVE_FLAGS[$i]}" in
+                --arch=arm|--arm)   suffix="mac-arm"; break ;;
+                --arch=intel|--intel) suffix="mac-intel"; break ;;
+                --arch)
+                    local next="${NATIVE_FLAGS[$i+1]:-}"
+                    [ "$next" = "arm" ] && suffix="mac-arm"
+                    break ;;
+            esac
+        done
+    fi
+    echo "$suffix"
+}
+PLATFORM_DIR="$(_resolve_platform_dir)"
+OUT="${PROJECT_DIR}/output/${PLATFORM_DIR}"
+LOG="${PROJECT_DIR}/logs/${PLATFORM_DIR}"
 mkdir -p "$OUT" "$LOG"
 
 echo "=== ${MODE} | ${TARGET} | ${PLATFORM} ==="
@@ -216,23 +236,33 @@ echo "=== ${MODE} | ${TARGET} | ${PLATFORM} ==="
 # the build is skipped — the CI cache already has them.
 _check_cache_hit() {
     local out_dir="$1" target="$2"
+    local dir_name="$(basename "$out_dir")"
+
+    # WASM target checks its own output files
+    case "$target" in
+        wasm)
+            [ -f "$out_dir/mm2_bg.wasm" ] && [ -f "$out_dir/mm2.js" ] || return 1
+            return 0 ;;
+    esac
+
     case "$target" in
         all|kdf)
-            case "$(basename "$out_dir")" in
+            case "$dir_name" in
                 linux)   [ -f "$out_dir/atomicdex-kdf-linux-x86_64" ]           || return 1 ;;
                 mac-intel) [ -f "$out_dir/atomicdex-kdf-macos-intel" ]         || return 1 ;;
                 mac-arm)   [ -f "$out_dir/atomicdex-kdf-macos-arm" ]           || return 1 ;;
                 windows)   [ -f "$out_dir/atomicdex-kdf-windows-x86_64.exe" ]  || return 1 ;;
-                wasm)      [ -f "$out_dir/mm2_bg.wasm" ] && [ -f "$out_dir/mm2.js" ] || return 1 ;;
+                *)         return 1 ;;  # unknown platform — don't skip
             esac ;;
     esac
     case "$target" in
         all|desktop)
-            case "$(basename "$out_dir")" in
+            case "$dir_name" in
                 linux)   [ -f "$out_dir/atomicdex-desktop-linux-x86_64.AppImage" ]  || return 1 ;;
                 mac-intel) [ -f "$out_dir/atomicdex-desktop-macos-intel.dmg" ]      || return 1 ;;
                 mac-arm)   [ -f "$out_dir/atomicdex-desktop-macos-arm.dmg" ]        || return 1 ;;
                 windows)   [ -f "$out_dir/atomicdex-desktop-windows-x86_64-portable.zip" ] || return 1 ;;
+                *)         return 1 ;;  # unknown platform — don't skip
             esac ;;
     esac
     return 0
