@@ -719,7 +719,7 @@ function Build-Desktop {
     Step "6/9" "Copying KDF engine into desktop wallet..."
     $kdfDest = Join-Path $desktopDir "assets\tools\kdf"
     New-Item -ItemType Directory -Force -Path $kdfDest | Out-Null
-    Copy-Item $kdfOut (Join-Path $kdfDest "kdf.exe") -Force
+    Copy-Item (Join-Path $OutputDir "atomicdex-kdf-windows-x86_64.exe") (Join-Path $kdfDest "kdf.exe") -Force
     OK "KDF staged at assets\tools\kdf\"
 
     # Install Qt via aqtinstall
