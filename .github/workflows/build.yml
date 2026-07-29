@@ -52,7 +52,7 @@ jobs:
           echo "kdf=$(sha256sum src/docker-build.sh src/_build-lib.sh src/Dockerfile | sha256sum | awk '{print $1}')" >> $GITHUB_OUTPUT
 
       - name: Restore build cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             output/linux/
@@ -111,7 +111,7 @@ jobs:
           echo "script=$(shasum -a 256 src/build-mac-intel.sh src/_build-lib.sh | shasum -a 256 | awk '{print $1}')" >> $GITHUB_OUTPUT
 
       - name: Restore build cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             output/mac-intel/
@@ -170,7 +170,7 @@ jobs:
           "script=$script" | Out-File -FilePath $env:GITHUB_OUTPUT -Encoding utf8 -Append
 
       - name: Restore build cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             output/windows/
@@ -267,7 +267,7 @@ jobs:
           echo "script=$(sha256sum src/Dockerfile.kdf-wasm | awk '{print $1}')" >> $GITHUB_OUTPUT
 
       - name: Restore build cache
-        uses: actions/cache@v4
+        uses: actions/cache@v5
         with:
           path: |
             output/wasm/
@@ -331,7 +331,7 @@ jobs:
             config/toolchains.json
 
       - name: Download all artifacts
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v7
         with:
           path: artifacts
           pattern: atomicdex-*-output
