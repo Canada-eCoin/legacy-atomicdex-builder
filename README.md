@@ -8,7 +8,7 @@
 > **CI release surfaces:**
 > - **KDF binaries:** Linux x86_64, macOS Intel/x86_64, Windows x86_64
 > - **Desktop wallets:** Linux AppImage (~187 MB), macOS Intel DMG (~146 MB), Windows x86_64 portable ZIP (~186 MB)
-> - **WASM artifact:** `kdf-wasm.zip` containing `mm2.js`, `mm2_bg.wasm`, `package.json`, and `README.txt`
+> - **WASM artifact:** `atomicdex-kdf-wasm-bundle.zip` containing `mm2.js`, `mm2_bg.wasm`, `package.json`, and `README.txt`
 
 Portable build scripts for producing verified Komodo/AtomicDEX legacy artifacts:
 
@@ -77,7 +77,7 @@ output/wasm/mm2_bg.wasm
 output/wasm/package.json
 ```
 
-GitHub Releases package that trio as `kdf-wasm.zip` for cleaner downloads.
+GitHub Releases package that trio as `atomicdex-kdf-wasm-bundle.zip` for cleaner downloads.
 
 Logs land in:
 
@@ -136,8 +136,8 @@ Desktop builds expect KDF to already be available from a prior run.
 ### 4. Run the built Linux desktop wallet
 
 ```bash
-chmod +x output/linux/komodo-wallet-desktop-x86_64.AppImage
-./output/linux/komodo-wallet-desktop-x86_64.AppImage
+chmod +x output/linux/atomicdex-desktop-linux-x86_64.AppImage
+./output/linux/atomicdex-desktop-linux-x86_64.AppImage
 ```
 
 ### 5. Trigger GitHub Actions builds manually
@@ -398,18 +398,18 @@ Typical Linux output:
 
 ```text
 output/linux/
-├── kdf                                      65 MB   KDF engine
-├── kdf.sha256
-├── komodo-wallet-desktop-x86_64.AppImage   187 MB  desktop wallet
-├── komodo-wallet-desktop.sha256
-└── komodo-wallet-desktop                    25 MB   raw binary fallback
+├── atomicdex-kdf-linux-x86_64                65 MB   KDF engine
+├── atomicdex-kdf-linux-x86_64.sha256
+├── atomicdex-desktop-linux-x86_64.AppImage   187 MB  desktop wallet
+├── atomicdex-desktop-linux-x86_64.AppImage.sha256
+└── atomicdex-desktop-linux-x86_64             25 MB   raw binary fallback
 ```
 
 Verify a checksum:
 
 ```bash
-cat output/linux/kdf.sha256
-sha256sum output/linux/kdf
+cat output/linux/atomicdex-kdf-linux-x86_64.sha256
+sha256sum output/linux/atomicdex-kdf-linux-x86_64
 ```
 
 The two hashes should match.

@@ -268,36 +268,47 @@ jobs:
       - name: Flatten and package release assets
         run: |
           mkdir -p release
-          # Platform-prefix all files — basenames collide across platforms.
-          # Package the WASM trio as one distributable release asset instead of
-          # publishing the raw module pieces separately.
-          for dir in artifacts/atomicdex-*/; do
-            label="$(echo "$dir" | sed 's|artifacts/atomicdex-||;s|-output/||')"
-            find "$dir" -type f \
-              ! -path '*komodo-wallet.app/*' \
-              ! -name 'kdf_kwd' \
-              ! -name '*.sha256' \
-              -size +0c | while IFS= read -r f; do
-              base="$(basename "$f")"
-              if [ "$label" = "wasm-kdf" ]; then
-                case "$base" in
-                  mm2.js|mm2_bg.wasm|package.json)
-                    continue ;;
-                esac
-              fi
-              # Add platform prefix unless it already has a unique name
-              case "$base" in
-                *.AppImage|*.dmg|*.wasm|*.js|*.json|*.zip|*.exe)
-                  dest="$base" ;;
-                kdf)
-                  dest="${label}-${base}" ;;
-                *)
-                  dest="${label}-${base}" ;;
-              esac
-              cp "$f" "release/$dest"
-            done
-          done
 
+          # Explicit per-platform naming — no pattern matching.
+          # Build scripts already write uniquely-named artifacts;
+          # this step just copies them through and strips SHA256 files.
+
+          # Linux
+          linux_dir="artifacts/atomicdex-linux-output"
+          if [ -d "$linux_dir" ]; then
+            for f in \
+              atomicdex-kdf-linux-x86_64 \
+              atomicdex-kdf-linux-x86_64.sha256 \
+              atomicdex-desktop-linux-x86_64.AppImage \
+              atomicdex-desktop-linux-x86_64.AppImage.sha256 \
+              atomicdex-desktop-linux-x86_64; do
+              [ -f "$linux_dir/$f" ] && cp "$linux_dir/$f" "release/$f"
+            done
+          fi
+
+          # macOS Intel
+          mac_dir="artifacts/atomicdex-macos-intel-output"
+          if [ -d "$mac_dir" ]; then
+            for f in \
+              atomicdex-kdf-macos-intel \
+              atomicdex-kdf-macos-intel.sha256 \
+              atomicdex-desktop-macos-intel.dmg; do
+              [ -f "$mac_dir/$f" ] && cp "$mac_dir/$f" "release/$f"
+            done
+          fi
+
+          # Windows
+          win_dir="artifacts/atomicdex-windows-output"
+          if [ -d "$win_dir" ]; then
+            for f in \
+              atomicdex-kdf-windows-x86_64.exe \
+              atomicdex-kdf-windows-x86_64.exe.sha256 \
+              atomicdex-desktop-windows-x86_64-portable.zip; do
+              [ -f "$win_dir/$f" ] && cp "$win_dir/$f" "release/$f"
+            done
+          fi
+
+          # WASM — package as single distributable bundle
           wasm_dir="artifacts/atomicdex-wasm-kdf-output"
           if [ -d "$wasm_dir" ]; then
             for f in mm2.js mm2_bg.wasm package.json; do
@@ -308,7 +319,7 @@ jobs:
             cp "$wasm_dir/mm2_bg.wasm" "$wasm_zip_dir/"
             cp "$wasm_dir/package.json" "$wasm_zip_dir/"
             printf '%s\n' \
-              'KDF WebAssembly bundle' \
+              'AtomicDEX KDF WebAssembly bundle' \
               '' \
               'Contents:' \
               '- mm2.js        JavaScript loader / bindings' \
@@ -322,10 +333,13 @@ jobs:
               > "$wasm_zip_dir/README.txt"
             (
               cd "$wasm_zip_dir"
-              zip -q -9 "$OLDPWD/release/kdf-wasm.zip" mm2.js mm2_bg.wasm package.json README.txt
+              zip -q -9 "$OLDPWD/release/atomicdex-kdf-wasm-bundle.zip" mm2.js mm2_bg.wasm package.json README.txt
             )
             rm -rf "$wasm_zip_dir"
           fi
+
+          # Strip SHA256 files from release — keep them in local outputs only
+          rm -f release/*.sha256
 
           echo '=== Release assets ==='
           ls -lah release/

@@ -14,10 +14,10 @@
 #   ./build-linux.sh --dry-run        # check deps and print plan, no build
 #
 # Output:
-#   output/linux/kdf                              # KDF binary (~65MB)
-#   output/linux/kdf.sha256
-#   output/linux/komodo-wallet-desktop-x86_64.AppImage  # desktop AppImage (~187MB)
-#   output/linux/komodo-wallet-desktop.sha256
+#   output/linux/atomicdex-kdf-linux-x86_64                     # KDF binary (~65MB)
+#   output/linux/atomicdex-kdf-linux-x86_64.sha256
+#   output/linux/atomicdex-desktop-linux-x86_64.AppImage        # desktop AppImage (~187MB)
+#   output/linux/atomicdex-desktop-linux-x86_64.AppImage.sha256
 #
 # Logs:
 #   logs/linux/build.log           # full build output
@@ -586,13 +586,14 @@ build_kdf() {
         -j "$BUILD_CPUS" 2>&1 | sed 's/^/  /'
 
     # Copy output
-    cp "target/${target}/release/kdf" "${OUTPUT_DIR}/kdf"
-    sha256sum "${OUTPUT_DIR}/kdf" | cut -d" " -f1 > "${OUTPUT_DIR}/kdf.sha256"
+    local kdf_out="${OUTPUT_DIR}/atomicdex-kdf-linux-x86_64"
+    cp "target/${target}/release/kdf" "$kdf_out"
+    sha256sum "$kdf_out" | cut -d" " -f1 > "${kdf_out}.sha256"
 
     local size
-    size=$(du -h "${OUTPUT_DIR}/kdf" | cut -f1)
-    ok "KDF built — ${size} → ${OUTPUT_DIR}/kdf"
-    ok "SHA256: $(cat "${OUTPUT_DIR}/kdf.sha256")"
+    size=$(du -h "$kdf_out" | cut -f1)
+    ok "KDF built — ${size} → $kdf_out"
+    ok "SHA256: $(cat "${kdf_out}.sha256")"
 
     cd "$SCRIPT_DIR"
 }
@@ -615,7 +616,7 @@ build_desktop() {
     cd "$dtop_dir"
 
     # ── KDF ──────────────────────────────────────
-    stage_kdf "$dtop_dir" "${OUTPUT_DIR}/kdf" || return 1
+    stage_kdf "$dtop_dir" "${OUTPUT_DIR}/atomicdex-kdf-linux-x86_64" || return 1
     strip_kdf_fetchcontent "$dtop_dir"
 
     # ── Dependencies (shared with Docker path) ─────────────
@@ -649,20 +650,21 @@ build_desktop() {
     local appimage
     appimage=$(find . -maxdepth 1 -name '*.AppImage' -print -quit 2>/dev/null)
     if [ -n "$appimage" ] && [ -f "$appimage" ]; then
-        cp "$appimage" "${OUTPUT_DIR}/komodo-wallet-desktop-x86_64.AppImage"
+        cp "$appimage" "${OUTPUT_DIR}/atomicdex-desktop-linux-x86_64.AppImage"
     else
         warn "No AppImage found — raw binary only"
     fi
 
     if [ -f bin/AntaraAtomicDexAppDir/usr/bin/komodo-wallet ]; then
-        cp bin/AntaraAtomicDexAppDir/usr/bin/komodo-wallet "${OUTPUT_DIR}/komodo-wallet-desktop" 2>/dev/null || true
+        cp bin/AntaraAtomicDexAppDir/usr/bin/komodo-wallet "${OUTPUT_DIR}/atomicdex-desktop-linux-x86_64" 2>/dev/null || true
     fi
 
-    sha256sum "${OUTPUT_DIR}/komodo-wallet-desktop-x86_64.AppImage" 2>/dev/null | \
-        cut -d" " -f1 > "${OUTPUT_DIR}/komodo-wallet-desktop.sha256" || true
+    local desktop_out="${OUTPUT_DIR}/atomicdex-desktop-linux-x86_64.AppImage"
+    sha256sum "$desktop_out" 2>/dev/null | \
+        cut -d" " -f1 > "${desktop_out}.sha256" || true
 
     local size
-    size=$(du -h "${OUTPUT_DIR}/komodo-wallet-desktop-x86_64.AppImage" 2>/dev/null | cut -f1 || echo "unknown")
+    size=$(du -h "$desktop_out" 2>/dev/null | cut -f1 || echo "unknown")
     ok "Desktop built — ${size} → ${OUTPUT_DIR}/"
 
     cd "$SCRIPT_DIR"
@@ -787,7 +789,7 @@ main() {
     echo "  Undo:   ${INSTALLED_LOG}"
     echo ""
     echo "  Run the desktop wallet:"
-    echo "    cd ${OUTPUT_DIR} && chmod +x *.AppImage && ./komodo-wallet-desktop-x86_64.AppImage"
+    echo "    cd ${OUTPUT_DIR} && chmod +x *.AppImage && ./atomicdex-desktop-linux-x86_64.AppImage"
     echo ""
 }
 

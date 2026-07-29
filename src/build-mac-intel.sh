@@ -14,10 +14,10 @@
 #   ./build-mac-intel.sh --dry-run        # print plan only
 #
 # Output:
-#   output/mac-intel/kdf
-#   output/mac-intel/kdf.sha256
+#   output/mac-intel/atomicdex-kdf-macos-intel
+#   output/mac-intel/atomicdex-kdf-macos-intel.sha256
 #   output/mac-intel/*.app
-#   output/mac-intel/*.dmg                # if packaging succeeds
+#   output/mac-intel/atomicdex-desktop-macos-intel.dmg                # if packaging succeeds
 # ============================================================================
 
 set -euo pipefail
@@ -547,16 +547,17 @@ build_kdf() {
         cargo build --release --target "$BUILD_RUST_TARGET" -p mm2_bin_lib -j "$BUILD_CPUS"
     )
 
-    cp "$kdf_dir/target/${BUILD_RUST_TARGET}/release/kdf" "$OUTPUT_DIR/kdf"
-    shasum -a 256 "$OUTPUT_DIR/kdf" | awk '{print $1}' > "$OUTPUT_DIR/kdf.sha256"
-    ok "KDF → $OUTPUT_DIR/kdf"
-    ok "SHA256: $(cat "$OUTPUT_DIR/kdf.sha256")"
+    local kdf_out="$OUTPUT_DIR/atomicdex-kdf-macos-intel"
+    cp "$kdf_dir/target/${BUILD_RUST_TARGET}/release/kdf" "$kdf_out"
+    shasum -a 256 "$kdf_out" | awk '{print $1}' > "${kdf_out}.sha256"
+    ok "KDF → $kdf_out"
+    ok "SHA256: $(cat "${kdf_out}.sha256")"
 }
 
 apply_local_desktop_patches() {
     local desktop_dir="$1"
     mkdir -p "$desktop_dir/assets/tools/kdf"
-    cp "$OUTPUT_DIR/kdf" "$desktop_dir/assets/tools/kdf/kdf_kwd"
+    cp "$OUTPUT_DIR/atomicdex-kdf-macos-intel" "$desktop_dir/assets/tools/kdf/kdf_kwd"
     chmod +x "$desktop_dir/assets/tools/kdf/kdf_kwd" 2>/dev/null || true
 
     "$PYTHON_BIN" - "$desktop_dir/CMakeLists.txt" "$desktop_dir/ci_tools_atomic_dex/vcpkg-custom-ports/ports/cpprestsdk/portfile.cmake" <<'PY'
@@ -619,7 +620,7 @@ stage_kdf_in_app_bundle() {
     local target_dir="$app_bundle/Contents/Resources/assets/tools/kdf"
 
     mkdir -p "$target_dir"
-    cp "$OUTPUT_DIR/kdf" "$target_dir/kdf_kwd"
+    cp "$OUTPUT_DIR/atomicdex-kdf-macos-intel" "$target_dir/kdf_kwd"
     chmod +x "$target_dir/kdf_kwd" 2>/dev/null || true
     ok "KDF staged into app bundle → $target_dir/kdf_kwd"
 }
@@ -685,7 +686,7 @@ build_desktop() {
     local dmg_found=""
     local app_found=""
 
-    [ -f "$OUTPUT_DIR/kdf" ] || die "KDF binary not found at $OUTPUT_DIR/kdf — run: ./commands/build/command.sh native kdf"
+    [ -f "$OUTPUT_DIR/atomicdex-kdf-macos-intel" ] || die "KDF binary not found at $OUTPUT_DIR/atomicdex-kdf-macos-intel — run: ./commands/build/command.sh native kdf"
 
     resolve_python
     resolve_qt
@@ -784,7 +785,7 @@ build_desktop() {
 
         # Create DMG (brief pause to let macdeployqt settle)
         local app_name="$(basename "$app_found" .app)"
-        local dmg_path="$OUTPUT_DIR/${app_name}.dmg"
+        local dmg_path="$OUTPUT_DIR/atomicdex-desktop-macos-intel.dmg"
         step "6g" "Creating DMG"
         sleep 3
         hdiutil create -volname "${APP_NAME:-Komodo Wallet}" \

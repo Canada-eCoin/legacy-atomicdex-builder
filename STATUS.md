@@ -11,7 +11,7 @@ SHA256 values in the release body, and full provenance.
 | Linux | KDF + AppImage (~187 MB) |
 | macOS Intel | KDF + DMG (~146 MB) |
 | Windows x86_64 | KDF + portable ZIP (~186 MB) |
-| WASM | kdf-wasm.zip (~32 MB wasm payload + metadata) |
+| WASM | atomicdex-kdf-wasm-bundle.zip (~32 MB wasm payload + metadata) |
 
 ## Build pathway status
 
@@ -23,7 +23,7 @@ SHA256 values in the release body, and full provenance.
 | macOS arm64 / Apple Silicon | Working / tested with WebEngine disabled | Native arm64 desktop app builds and runs. QtWebEngine-dependent chart/price widget disabled (Homebrew qt@5 limitation). |
 | Windows native x86_64 | Working / verified + portable ZIP | Full KDF + Qt desktop build with portable ZIP output. CI green. |
 | Windows native arm64 | Roadmap | Future target. |
-| KDF WebAssembly | Working / verified + in releases | Docker wasm-pack build, CI green. Release packages `mm2.js`, `mm2_bg.wasm`, `package.json`, and `README.txt` as `kdf-wasm.zip`. |
+| KDF WebAssembly | Working / verified + in releases | Docker wasm-pack build, CI green. Release packages `mm2.js`, `mm2_bg.wasm`, `package.json`, and `README.txt` as `atomicdex-kdf-wasm-bundle.zip`. |
 | Deterministic / reproducible builds | Not done yet | Reproducibility work still outstanding. |
 
 ## Release posture
@@ -35,7 +35,7 @@ SHA256 values in the release body, and full provenance.
 - Linux AppImage confirmed working and tested.
 - macOS DMG confirmed building in CI.
 - Windows portable ZIP confirmed building in CI (installer EXE still TBD).
-- WASM is released as a single `kdf-wasm.zip` bundle.
+- WASM is released as a single `atomicdex-kdf-wasm-bundle.zip` bundle.
 - macOS arm64 is not in CI (requires Apple Silicon runner) but the
   build script is tested on Mac mini M2.
 - Deterministic output has **not** been locked down yet.
@@ -49,7 +49,7 @@ SHA256 values in the release body, and full provenance.
 | macOS | arm64 | native path with QtWebEngine limitation | KDF, Qt desktop, DMG |
 | Windows | x86_64 | KDF + portable ZIP + CI | KDF, Qt desktop, portable ZIP, installer EXE |
 | Windows | arm64 | roadmap | KDF, Qt desktop, portable ZIP, installer EXE |
-| KDF | wasm | CI green + in releases | `kdf-wasm.zip` bundle |
+| KDF | wasm | CI green + in releases | `atomicdex-kdf-wasm-bundle.zip` bundle |
 
 Recommended landing order:
 

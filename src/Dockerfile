@@ -180,7 +180,7 @@ COPY config/ /builder/config/
 COPY src/docker-build.sh src/_build-lib.sh /builder/src/
 
 # KDF binary from kdf stage — overwrites any stale host copy
-COPY --from=kdf /builder/output/linux/kdf /builder/output/linux/kdf
+COPY --from=kdf /builder/output/linux/atomicdex-kdf-linux-x86_64 /builder/output/linux/atomicdex-kdf-linux-x86_64
 
 WORKDIR /builder
 RUN chmod +x /builder/src/docker-build.sh
@@ -195,7 +195,7 @@ RUN --mount=type=cache,target=/builder/.build/desktop/ci_tools_atomic_dex/build-
 # ═══════════════════════════════════════════════════════════════
 FROM scratch AS all
 ARG PLATFORM=linux
-COPY --from=kdf /builder/output/linux/kdf /kdf
-COPY --from=kdf /builder/output/linux/kdf.sha256 /kdf.sha256
-COPY --from=desktop /builder/output/linux/komodo-wallet-desktop-x86_64.AppImage /komodo-wallet-desktop-x86_64.AppImage
-COPY --from=desktop /builder/output/linux/komodo-wallet-desktop.sha256 /komodo-wallet-desktop.sha256
+COPY --from=kdf /builder/output/linux/atomicdex-kdf-linux-x86_64 /atomicdex-kdf-linux-x86_64
+COPY --from=kdf /builder/output/linux/atomicdex-kdf-linux-x86_64.sha256 /atomicdex-kdf-linux-x86_64.sha256
+COPY --from=desktop /builder/output/linux/atomicdex-desktop-linux-x86_64.AppImage /atomicdex-desktop-linux-x86_64.AppImage
+COPY --from=desktop /builder/output/linux/atomicdex-desktop-linux-x86_64.AppImage.sha256 /atomicdex-desktop-linux-x86_64.AppImage.sha256

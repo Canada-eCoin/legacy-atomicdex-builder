@@ -14,8 +14,8 @@
 #   .\build-windows.ps1 -Help           # show this help
 #
 # Output:
-#   output\windows\kdf.exe              # KDF binary (~65MB)
-#   output\windows\kdf.exe.sha256
+#   output\windows\atomicdex-kdf-windows-x86_64.exe              # KDF binary (~65MB)
+#   output\windows\atomicdex-kdf-windows-x86_64.exe.sha256
 #
 # Logs:
 #   logs\windows\build.log              # full build output
@@ -646,14 +646,15 @@ function Build-Kdf {
     OK "KDF compiled successfully"
 
     # Copy output
+    $kdfOut = Join-Path $OutputDir "atomicdex-kdf-windows-x86_64.exe"
     $kdfSrc = "target\$rustTarget\release\kdf.exe"
     if (Test-Path $kdfSrc) {
-        Copy-Item $kdfSrc (Join-Path $OutputDir "kdf.exe") -Force
+        Copy-Item $kdfSrc $kdfOut -Force
     } else {
         # Cargo sometimes names it differently
         $found = Get-ChildItem -Path "target\$rustTarget\release" -Filter "kdf.exe" | Select-Object -First 1
         if ($found) {
-            Copy-Item $found.FullName (Join-Path $OutputDir "kdf.exe") -Force
+            Copy-Item $found.FullName $kdfOut -Force
         } else {
             Fail "Could not find kdf.exe in build output"
             Pop-Location
@@ -662,12 +663,12 @@ function Build-Kdf {
     }
 
     # SHA256
-    $sha256 = (Get-FileHash -Path (Join-Path $OutputDir "kdf.exe") -Algorithm SHA256).Hash.ToLower()
-    $sha256 | Out-File -FilePath (Join-Path $OutputDir "kdf.exe.sha256") -Encoding ascii -NoNewline
+    $sha256 = (Get-FileHash -Path $kdfOut -Algorithm SHA256).Hash.ToLower()
+    $sha256 | Out-File -FilePath "${kdfOut}.sha256" -Encoding ascii -NoNewline
 
-    $size = (Get-Item (Join-Path $OutputDir "kdf.exe")).Length
+    $size = (Get-Item $kdfOut).Length
     $sizeMB = "{0:N0}" -f ($size / 1MB)
-    OK "KDF built — ~${sizeMB}MB → $OutputDir\kdf.exe"
+    OK "KDF built — ~${sizeMB}MB → $kdfOut"
     OK "SHA256: $sha256"
 
     Log "KDF built: $size bytes, SHA256: $sha256"
@@ -718,7 +719,7 @@ function Build-Desktop {
     Step "6/9" "Copying KDF engine into desktop wallet..."
     $kdfDest = Join-Path $desktopDir "assets\tools\kdf"
     New-Item -ItemType Directory -Force -Path $kdfDest | Out-Null
-    Copy-Item (Join-Path $OutputDir "kdf.exe") (Join-Path $kdfDest "kdf.exe") -Force
+    Copy-Item $kdfOut (Join-Path $kdfDest "kdf.exe") -Force
     OK "KDF staged at assets\tools\kdf\"
 
     # Install Qt via aqtinstall
@@ -823,7 +824,7 @@ function Build-Desktop {
             OK "windeployqt complete"
         }
 
-        $zipFile = Join-Path $OutputDir "atomicdex-portable.zip"
+        $zipFile = Join-Path $OutputDir "atomicdex-desktop-windows-x86_64-portable.zip"
         Info "Creating portable ZIP..."
         Compress-Archive -Path "$bundledDir\*" -DestinationPath $zipFile -Force
         OK "Portable ZIP -> $zipFile"
@@ -932,7 +933,7 @@ function Main {
     Write-Host "  Log:     $LogFile" -ForegroundColor Gray
     Write-Host ""
     Write-Host "  Run KDF:" -ForegroundColor White
-    Write-Host "    .\output\windows\kdf.exe" -ForegroundColor Gray
+    Write-Host "    .\output\windows\atomicdex-kdf-windows-x86_64.exe" -ForegroundColor Gray
     Write-Host ""
 
     Log "BUILD COMPLETE — elapsed: $($elapsed.ToString('mm\:ss'))"

@@ -299,7 +299,7 @@ if [ "$MODE" = "docker" ]; then
     echo ""
     echo "=== DONE ==="
     ls -lh "$OUT/"
-    [ -f "$OUT/komodo-wallet-desktop-x86_64.AppImage" ] && echo "Run: $OUT/komodo-wallet-desktop-x86_64.AppImage"
+    [ -f "$OUT/atomicdex-desktop-linux-x86_64.AppImage" ] && echo "Run: $OUT/atomicdex-desktop-linux-x86_64.AppImage"
     exit 0
 fi
 
