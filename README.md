@@ -532,6 +532,36 @@ atomicdex-legacy-builder/
 
 ---
 
+## Security software false positives
+
+Windows Defender and some other AV products may flag `komodo-wallet.exe` and/or
+`atomicdex-kdf-windows-x86_64.exe` as suspicious. **These are false positives** —
+our binaries are unsigned, which inflates machine-learning classifier scores.
+See [WINDOWS.md § Windows Defender false positives](./WINDOWS.md#windows-defender-false-positives)
+for the full explanation, SHA256 verification steps, and instructions for
+submitting a false-positive report to Microsoft.
+
+### Quick trust path
+
+Every artifact ships with a `.sha256` file. Verify before your AV quarantines it:
+
+```powershell
+# Windows (PowerShell)
+Get-FileHash .\komodo-wallet.exe -Algorithm SHA256
+# Compare against the published value in the GitHub Release body
+```
+
+```bash
+# Linux / macOS
+sha256sum atomicdex-desktop-linux-x86_64.AppImage
+# Compare against the published value in the GitHub Release body
+```
+
+If the hash matches the release table, the binary is exactly what we built —
+regardless of what your antivirus says.
+
+---
+
 ## Troubleshooting
 
 | Symptom | Fix |
@@ -543,6 +573,7 @@ atomicdex-legacy-builder/
 | Docker out of disk | Run `docker system prune -a` if you are comfortable deleting Docker cache/images. |
 | macOS: `xcode-select` error | Run `xcode-select --install`. |
 | Windows: Qt/WebEngine link errors | See [WINDOWS.md](./WINDOWS.md) troubleshooting — most common causes are MSVC toolset version mismatch and libsodium overlay port path. |
+| Windows Defender flags wallet as Trojan | **False positive** — see [Security software false positives](#security-software-false-positives) above. |
 
 ---
 

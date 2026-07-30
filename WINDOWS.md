@@ -532,6 +532,111 @@ pre-built artifact URL.
 
 ---
 
+## Windows Defender false positives
+
+### The problem
+
+Windows Defender (and occasionally other AV products) may flag `komodo-wallet.exe`
+and/or `atomicdex-kdf-windows-x86_64.exe` as malware. Commonly seen detection
+names include:
+
+- `Trojan:Win32/bearfoos.A!ml`
+- `Trojan:Win32/Wacatac.!ml`
+- `Behavior:Win32/...`
+
+**These are false positives.** The `!ml` suffix means the detection came from a
+machine-learning classifier, not a signature match. Three things combine to
+inflate the classifier score:
+
+1. **No Authenticode signature** — unsigned `.exe` files are an anomaly in the
+   Windows ecosystem. Windows Defender heavily weights the absence of a valid
+   digital signature in its ML confidence. A signed binary with identical
+   behavior would not trigger this.
+
+2. **Embedded executable extraction** — the wallet bundles `kdf.exe` inside
+   itself and extracts it to `%APPDATA%\atomic_qt\<version>\tools\kdf\` at
+   runtime. This "dropper-like" pattern (one .exe unpacking another into a
+   user-writable path) is a high-signal feature for malware classifiers, even
+   though it's legitimate here.
+
+3. **QtWebEngine surface area** — the wallet links against Qt 5.15.2 with
+   `qtwebengine` (a full Chromium engine), resulting in a binary with network
+   socket APIs, process spawning, and broad filesystem I/O — all features
+   that contribute to ML risk scores.
+
+None of these indicate actual malware. They're architectural consequences of
+how the wallet works combined with the absence of code signing.
+
+### Verify the binary is legitimate
+
+Every build produces a SHA256 hash. Compare the hash of your downloaded file
+against the value published in the GitHub Release:
+
+```powershell
+# Compute the hash of your download
+Get-FileHash .\komodo-wallet.exe -Algorithm SHA256
+
+# Compare against the value in the release body at:
+# https://github.com/Canada-eCoin/legacy-atomicdex-builder/releases
+```
+
+If the hashes match, the binary is exactly what we built — your AV is wrong.
+
+### Submit a false-positive report to Microsoft
+
+The most effective thing you can do as a user is report the detection to
+Microsoft. Every report trains their classifier and reduces false positives
+for everyone.
+
+1. Go to **https://www.microsoft.com/en-us/wdsi/filesubmission**
+2. Sign in with a Microsoft account (personal is fine; you can skip sign-in
+   but tracking your submission requires it)
+3. Select: **"Home customer"** (or "Software developer" if you're building
+   from source)
+4. For the security product, choose: **"Microsoft Defender Antivirus (Windows 10)"
+   or "Microsoft Defender Antivirus (Windows 11)"** as appropriate
+5. For "What do you believe this file is?" select:
+   **"Incorrectly detected as malware/malicious"**
+6. Enter the detection name exactly as shown in Windows Security — e.g.
+   `Trojan:Win32/bearfoos.A!ml`
+7. In "Additional information," explain:
+
+   > This is a false positive. The file is komodo-wallet.exe, part of the
+   > AtomicDEX Legacy desktop wallet built from open-source code at
+   > https://github.com/Canada-eCoin/legacy-atomicdex-builder. It is an
+   > unsigned Qt5 desktop application that bundles a KDF (Komodo DeFi
+   > Framework) engine. The embedded-executable extraction pattern (unpacking
+   > kdf.exe to %APPDATA%) and QtWebEngine network surface are legitimate
+   > application behavior, not malware. SHA256: <paste from release>.
+
+8. Upload `komodo-wallet.exe` (must be under 50 MB; the raw .exe is ~16 MB)
+9. Submit
+
+Microsoft typically re-scans submitted files within hours. If they confirm the
+false positive, the detection rule is updated and propagates to all Windows
+Defender instances via definition updates (usually within 24-48 hours).
+
+### If you can't wait for Microsoft
+
+As a local workaround, you can add an exclusion in Windows Security:
+
+1. Open **Windows Security** → **Virus & threat protection**
+2. Under "Virus & threat protection settings," click **Manage settings**
+3. Scroll to **Exclusions** → **Add or remove exclusions**
+4. Add a **File exclusion** pointing to `komodo-wallet.exe`
+
+**Only do this after verifying the SHA256 hash matches the published release.**
+Adding exclusions for unverified binaries defeats the purpose of antivirus.
+
+### For developers: the real fix is code signing
+
+Authenticode signing is on the roadmap (see [STATUS.md](./STATUS.md) item 9:
+"signing / reproducibility / manifests"). Once implemented, these false
+positives should drop dramatically — signed binaries are treated very
+differently by the ML classifier.
+
+---
+
 ## Reference: what build-windows.ps1 automates
 
 The script at `src/build-windows.ps1` handles:
