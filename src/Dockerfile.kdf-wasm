@@ -19,6 +19,7 @@
 #   output/wasm/mm2_bg.wasm      ← KDF engine compiled to WASM
 #   output/wasm/mm2.js            ← JS glue code (wasm-bindgen)
 #   output/wasm/package.json
+#   output/wasm/snippets/         ← generated JS runtime helpers when emitted
 
 ARG WASM_KDF_BASE_IMAGE
 FROM ${WASM_KDF_BASE_IMAGE}
@@ -74,11 +75,7 @@ RUN --mount=type=cache,target=/tmp/kdf-src/target \
       --out-name mm2 \
       --release \
       -- --features native && \
-    cp mm2src/mm2_bin_lib/pkg/mm2_bg.wasm /builder/output/wasm/ && \
-    cp mm2src/mm2_bin_lib/pkg/mm2.js /builder/output/wasm/ && \
-    cp mm2src/mm2_bin_lib/pkg/package.json /builder/output/wasm/
+    cp -a mm2src/mm2_bin_lib/pkg/. /builder/output/wasm/
 
 FROM scratch AS output
-COPY --from=0 /builder/output/wasm/mm2_bg.wasm /mm2_bg.wasm
-COPY --from=0 /builder/output/wasm/mm2.js     /mm2.js
-COPY --from=0 /builder/output/wasm/package.json /package.json
+COPY --from=0 /builder/output/wasm/ /

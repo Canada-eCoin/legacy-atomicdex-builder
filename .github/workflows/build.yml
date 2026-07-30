@@ -385,26 +385,31 @@ jobs:
             for f in mm2.js mm2_bg.wasm package.json; do
               [ -f "$wasm_dir/$f" ] || { echo "Missing WASM release input: $wasm_dir/$f" >&2; exit 1; }
             done
+            if grep -q '\./snippets/' "$wasm_dir/mm2.js"; then
+              [ -d "$wasm_dir/snippets" ] || { echo "mm2.js imports ./snippets but snippets/ is missing from WASM release input" >&2; exit 1; }
+            fi
             wasm_zip_dir="$(mktemp -d)"
-            cp "$wasm_dir/mm2.js" "$wasm_zip_dir/"
-            cp "$wasm_dir/mm2_bg.wasm" "$wasm_zip_dir/"
-            cp "$wasm_dir/package.json" "$wasm_zip_dir/"
+            cp -a "$wasm_dir/." "$wasm_zip_dir/"
             printf '%s\n' \
               'AtomicDEX KDF WebAssembly bundle' \
               '' \
               'Contents:' \
+              '- Full wasm-pack runtime output needed by mm2.js' \
               '- mm2.js        JavaScript loader / bindings' \
               '- mm2_bg.wasm  WebAssembly engine binary' \
               '- package.json Package metadata' \
+              '- snippets/     Generated runtime helpers (when emitted by wasm-pack)' \
               '' \
               'Usage:' \
               '- Serve these files over HTTP/HTTPS, not file://' \
               '- Import ./mm2.js from a browser ES module' \
-              '- Let mm2.js load ./mm2_bg.wasm from the same directory' \
+              '- Let mm2.js load its sibling files (including snippets/) from the same directory tree' \
               > "$wasm_zip_dir/README.txt"
             (
               cd "$wasm_zip_dir"
-              zip -q -9 "$OLDPWD/release/atomicdex-kdf-wasm-bundle.zip" mm2.js mm2_bg.wasm package.json README.txt
+              shopt -s dotglob nullglob
+              wasm_bundle_entries=(*)
+              zip -q -9 -r "$OLDPWD/release/atomicdex-kdf-wasm-bundle.zip" "${wasm_bundle_entries[@]}"
             )
             rm -rf "$wasm_zip_dir"
           fi

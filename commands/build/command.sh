@@ -241,7 +241,10 @@ _check_cache_hit() {
     # WASM target checks its own output files
     case "$target" in
         wasm)
-            [ -f "$out_dir/mm2_bg.wasm" ] && [ -f "$out_dir/mm2.js" ] || return 1
+            [ -f "$out_dir/mm2_bg.wasm" ] && [ -f "$out_dir/mm2.js" ] && [ -f "$out_dir/package.json" ] || return 1
+            if grep -q '\./snippets/' "$out_dir/mm2.js" 2>/dev/null; then
+                [ -d "$out_dir/snippets" ] || return 1
+            fi
             return 0 ;;
     esac
 

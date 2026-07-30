@@ -23,7 +23,7 @@ SHA256 values in the release body, and full provenance.
 | macOS arm64 / Apple Silicon | Working / tested with WebEngine disabled | Native arm64 desktop app builds and runs. QtWebEngine-dependent chart/price widget disabled (Homebrew qt@5 limitation). |
 | Windows native x86_64 | Working / verified + portable ZIP | Full KDF + Qt desktop build with portable ZIP output. CI green. |
 | Windows native arm64 | Roadmap | Future target. |
-| KDF WebAssembly | Working / verified + in releases | Docker wasm-pack build, CI green. Release packages `mm2.js`, `mm2_bg.wasm`, `package.json`, and `README.txt` as `atomicdex-kdf-wasm-bundle.zip`. |
+| KDF WebAssembly | Working / verified + in releases | Docker wasm-pack build, CI green. Release packages the full wasm runtime bundle (`mm2.js`, `mm2_bg.wasm`, `package.json`, `README.txt`, and generated `snippets/` when emitted) as `atomicdex-kdf-wasm-bundle.zip`. |
 | Deterministic / reproducible builds | Not done yet | Reproducibility work still outstanding. |
 
 ## Release posture
